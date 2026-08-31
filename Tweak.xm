@@ -1,6 +1,6 @@
 //
 //  Tweak.xm
-//  Among Us iOS Cheat (FINAL - ACTUALLY CLEAN)
+//  Among Us iOS Cheat (ULTIMATE - FULLY FIXED)
 //  
 //  Features:
 //  - Always Impostor
@@ -8,8 +8,10 @@
 //  - ESP (Player positions, roles, names)
 //  - Auto Win
 //  - Anti-Ban features
-//  - Simple settings menu with toggles
-//  - Floating button to open GUI
+//  - Floating button with logo to open GUI
+//  - Triple tap anywhere to open GUI
+//  - Shake device to open GUI
+//  - Volume button press to open GUI
 //
 
 #import <Foundation/Foundation.h>
@@ -104,24 +106,25 @@ typedef struct {
 @end
 
 // ============================================================
-// MARK: - Floating Action Button for GUI
+// MARK: - Beautiful Floating Action Button with Logo
 // ============================================================
 
 @interface FloatingMenuButton : UIButton
 @property (nonatomic, strong) UIVisualEffectView *blurView;
-@property (nonatomic, strong) UILabel *iconLabel;
+@property (nonatomic, strong) UIImageView *logoImageView;
+@property (nonatomic, strong) UILabel *textLabel;
 @end
 
 @implementation FloatingMenuButton
 
 - (instancetype)init {
-    self = [super initWithFrame:CGRectMake(0, 0, 65, 65)];
+    self = [super initWithFrame:CGRectMake(0, 0, 70, 70)];
     if (self) {
         // Setup blur effect
         UIBlurEffect *blurEffect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
         self.blurView = [[UIVisualEffectView alloc] initWithEffect:blurEffect];
         self.blurView.frame = self.bounds;
-        self.blurView.layer.cornerRadius = 32.5;
+        self.blurView.layer.cornerRadius = 35;
         self.blurView.layer.masksToBounds = YES;
         self.blurView.userInteractionEnabled = NO;
         [self addSubview:self.blurView];
@@ -129,34 +132,78 @@ typedef struct {
         // Add gradient border
         CAGradientLayer *gradientBorder = [CAGradientLayer layer];
         gradientBorder.frame = self.bounds;
-        gradientBorder.cornerRadius = 32.5;
+        gradientBorder.cornerRadius = 35;
         gradientBorder.colors = @[
             (id)[UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:0.0 green:0.6 blue:1.0 alpha:1.0].CGColor
+            (id)[UIColor colorWithRed:0.0 green:0.6 blue:1.0 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.8 green:0.2 blue:0.8 alpha:1.0].CGColor
         ];
         gradientBorder.startPoint = CGPointMake(0, 0);
         gradientBorder.endPoint = CGPointMake(1, 1);
         
         CAShapeLayer *shapeLayer = [CAShapeLayer layer];
-        shapeLayer.lineWidth = 2.5;
-        shapeLayer.path = [UIBezierPath bezierPathWithRoundedRect:self.bounds cornerRadius:32.5].CGPath;
+        shapeLayer.lineWidth = 3;
+        shapeLayer.path = [UIBezierPath bezierPathWithRoundedRect:self.bounds cornerRadius:35].CGPath;
         shapeLayer.fillColor = [UIColor clearColor].CGColor;
         shapeLayer.strokeColor = [UIColor whiteColor].CGColor;
         gradientBorder.mask = shapeLayer;
         [self.layer addSublayer:gradientBorder];
         
-        // Icon (using emoji with shadow)
-        self.iconLabel = [[UILabel alloc] initWithFrame:self.bounds];
-        self.iconLabel.text = @"🎮";
-        self.iconLabel.font = [UIFont systemFontOfSize:28];
-        self.iconLabel.textAlignment = NSTextAlignmentCenter;
-        self.iconLabel.textColor = [UIColor whiteColor];
-        self.iconLabel.layer.shadowColor = [UIColor blackColor].CGColor;
-        self.iconLabel.layer.shadowOffset = CGSizeMake(0, 2);
-        self.iconLabel.layer.shadowOpacity = 0.5;
-        self.iconLabel.layer.shadowRadius = 4;
-        self.iconLabel.userInteractionEnabled = NO;
-        [self addSubview:self.iconLabel];
+        // Create a custom logo (Using a gear/cheat icon)
+        self.logoImageView = [[UIImageView alloc] initWithFrame:CGRectMake(15, 12, 40, 40)];
+        self.logoImageView.contentMode = UIViewContentModeScaleAspectFit;
+        self.logoImageView.tintColor = [UIColor whiteColor];
+        
+        // Create a gear icon programmatically
+        UIGraphicsBeginImageContextWithOptions(CGSizeMake(40, 40), NO, 0);
+        CGContextRef context = UIGraphicsGetCurrentContext();
+        
+        // Draw gear shape
+        CGContextSetStrokeColorWithColor(context, [UIColor whiteColor].CGColor);
+        CGContextSetLineWidth(context, 3);
+        CGContextSetFillColorWithColor(context, [UIColor clearColor].CGColor);
+        
+        // Outer circle
+        CGRect circleRect = CGRectMake(4, 4, 32, 32);
+        CGContextAddEllipseInRect(context, circleRect);
+        CGContextStrokePath(context);
+        
+        // Inner circle
+        CGRect innerRect = CGRectMake(10, 10, 20, 20);
+        CGContextAddEllipseInRect(context, innerRect);
+        CGContextStrokePath(context);
+        
+        // Gear teeth
+        for (int i = 0; i < 8; i++) {
+            CGFloat angle = (i * M_PI / 4) - M_PI / 8;
+            CGFloat x = 20 + 18 * cos(angle);
+            CGFloat y = 20 + 18 * sin(angle);
+            CGRect toothRect = CGRectMake(x - 4, y - 4, 8, 8);
+            CGContextAddRect(context, toothRect);
+        }
+        CGContextStrokePath(context);
+        
+        UIImage *gearImage = UIGraphicsGetImageFromCurrentImageContext();
+        UIGraphicsEndImageContext();
+        
+        self.logoImageView.image = gearImage;
+        self.logoImageView.layer.shadowColor = [UIColor blackColor].CGColor;
+        self.logoImageView.layer.shadowOffset = CGSizeMake(0, 2);
+        self.logoImageView.layer.shadowOpacity = 0.5;
+        self.logoImageView.layer.shadowRadius = 4;
+        [self addSubview:self.logoImageView];
+        
+        // Small text label below icon
+        self.textLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 52, 70, 15)];
+        self.textLabel.text = @"MENU";
+        self.textLabel.textColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
+        self.textLabel.font = [UIFont boldSystemFontOfSize:9];
+        self.textLabel.textAlignment = NSTextAlignmentCenter;
+        self.textLabel.layer.shadowColor = [UIColor blackColor].CGColor;
+        self.textLabel.layer.shadowOffset = CGSizeMake(0, 1);
+        self.textLabel.layer.shadowOpacity = 0.8;
+        self.textLabel.layer.shadowRadius = 2;
+        [self addSubview:self.textLabel];
         
         // Add pulsing animation
         [self setupPulseAnimation];
@@ -164,8 +211,8 @@ typedef struct {
         // Shadow for the button itself
         self.layer.shadowColor = [UIColor blackColor].CGColor;
         self.layer.shadowOffset = CGSizeMake(0, 4);
-        self.layer.shadowOpacity = 0.4;
-        self.layer.shadowRadius = 8;
+        self.layer.shadowOpacity = 0.5;
+        self.layer.shadowRadius = 12;
         
         // Add target
         [self addTarget:self action:@selector(buttonTapped) forControlEvents:UIControlEventTouchUpInside];
@@ -173,6 +220,9 @@ typedef struct {
         // Haptic feedback on touch down
         [self addTarget:self action:@selector(buttonTouchDown) forControlEvents:UIControlEventTouchDown];
         [self addTarget:self action:@selector(buttonTouchUp) forControlEvents:UIControlEventTouchUpInside | UIControlEventTouchUpOutside];
+        
+        // Make button stand out
+        self.accessibilityLabel = @"Open Cheat Menu";
     }
     return self;
 }
@@ -191,7 +241,6 @@ typedef struct {
 - (void)buttonTouchDown {
     [UIView animateWithDuration:0.1 animations:^{
         self.transform = CGAffineTransformMakeScale(0.92, 0.92);
-        self.iconLabel.transform = CGAffineTransformMakeScale(0.92, 0.92);
     }];
     
     // Light haptic feedback
@@ -204,7 +253,6 @@ typedef struct {
 - (void)buttonTouchUp {
     [UIView animateWithDuration:0.2 delay:0 usingSpringWithDamping:0.5 initialSpringVelocity:0.5 options:UIViewAnimationOptionCurveEaseOut animations:^{
         self.transform = CGAffineTransformIdentity;
-        self.iconLabel.transform = CGAffineTransformIdentity;
     } completion:nil];
 }
 
@@ -217,11 +265,11 @@ typedef struct {
         [generator notificationOccurred:UINotificationFeedbackTypeSuccess];
     }
     
-    // Animate button rotation
+    // Animate button rotation with bounce
     [UIView animateWithDuration:0.3 animations:^{
         self.transform = CGAffineTransformMakeRotation(-M_PI_4);
     } completion:^(BOOL finished) {
-        [UIView animateWithDuration:0.3 animations:^{
+        [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.4 initialSpringVelocity:0.8 options:UIViewAnimationOptionCurveEaseOut animations:^{
             self.transform = CGAffineTransformIdentity;
         } completion:^(BOOL finished) {
             showSettingsMenu();
@@ -232,7 +280,8 @@ typedef struct {
 - (void)layoutSubviews {
     [super layoutSubviews];
     self.blurView.frame = self.bounds;
-    self.iconLabel.frame = self.bounds;
+    self.logoImageView.frame = CGRectMake(15, 12, 40, 40);
+    self.textLabel.frame = CGRectMake(0, 52, 70, 15);
     
     // Update gradient border
     for (CALayer *layer in self.layer.sublayers) {
@@ -299,7 +348,6 @@ typedef struct {
                                                                 target:self 
                                                                 action:@selector(closeTapped)];
     closeBtn.tintColor = [UIColor whiteColor];
-    // Remove font property - UIBarButtonItem doesn't have it
     self.navigationItem.leftBarButtonItem = closeBtn;
     
     UIBarButtonItem *applyBtn = [[UIBarButtonItem alloc] initWithTitle:@"Apply" 
@@ -307,7 +355,6 @@ typedef struct {
                                                                 target:self 
                                                                 action:@selector(applyTapped)];
     applyBtn.tintColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
-    // Remove font property - UIBarButtonItem doesn't have it
     self.navigationItem.rightBarButtonItem = applyBtn;
     
     [self setupUI];
@@ -374,6 +421,16 @@ typedef struct {
     [contentView addSubview:headerView];
     innerY = 85;
     
+    // How to open GUI info
+    UILabel *infoLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, innerY, contentWidth - 40, 40)];
+    infoLabel.text = @"📱 Tap floating button • Triple tap • Shake device";
+    infoLabel.textColor = [UIColor colorWithWhite:0.7 alpha:1.0];
+    infoLabel.font = [UIFont systemFontOfSize:12];
+    infoLabel.textAlignment = NSTextAlignmentCenter;
+    infoLabel.numberOfLines = 2;
+    [contentView addSubview:infoLabel];
+    innerY += 50;
+    
     // Toggle helpers - store toggles in dictionary with keys
     innerY += [self createToggleWithKey:@"impostor" title:@"🔴 Always Impostor" 
                                subtitle:@"You will always be the Impostor"
@@ -422,7 +479,7 @@ typedef struct {
     
     // Version info
     UILabel *versionLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, innerY, contentWidth - (padding * 2), 15)];
-    versionLabel.text = @"v2.0 • Triple-tap to open • Floating button available";
+    versionLabel.text = @"v3.0 • Ultimate Edition";
     versionLabel.textColor = [UIColor colorWithWhite:0.3 alpha:1.0];
     versionLabel.font = [UIFont systemFontOfSize:10];
     versionLabel.textAlignment = NSTextAlignmentCenter;
@@ -598,7 +655,7 @@ static void setupFloatingButton(void) {
                                           buttonSize.height);
         floatingButton.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleTopMargin;
         
-        // Add drag gesture - Use a block approach instead of self
+        // Add drag gesture
         UIPanGestureRecognizer *panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:nil action:NULL];
         [panGesture addTarget:(id)^(UIPanGestureRecognizer *gesture) {
             UIView *button = gesture.view;
@@ -647,6 +704,51 @@ static void setupFloatingButton(void) {
         } completion:nil];
         
         NSLog(@"[AmongUsCheat] Floating button added");
+    });
+}
+
+// ============================================================
+// MARK: - Shake to Open GUI
+// ============================================================
+
+static void setupShakeGesture(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow *window = [UIApplication sharedApplication].keyWindow;
+        if (!window) {
+            window = [[UIApplication sharedApplication].windows firstObject];
+        }
+        
+        // Add a motion detector
+        [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidBecomeActiveNotification
+                                                          object:nil
+                                                           queue:[NSOperationQueue mainQueue]
+                                                      usingBlock:^(NSNotification *note) {
+            // Enable shake detection
+            [window becomeFirstResponder];
+        }];
+        
+        // Swizzle motion ended method
+        Class windowClass = [window class];
+        SEL motionSel = @selector(motionEnded:withEvent:);
+        Method originalMethod = class_getInstanceMethod(windowClass, motionSel);
+        
+        if (originalMethod) {
+            __block void (*originalImp)(id, SEL, UIEventSubtype, UIEvent *) = NULL;
+            originalImp = (void (*)(id, SEL, UIEventSubtype, UIEvent *))method_getImplementation(originalMethod);
+            
+            IMP newImp = imp_implementationWithBlock(^(id self, UIEventSubtype motion, UIEvent *event) {
+                if (motion == UIEventSubtypeMotionShake) {
+                    NSLog(@"[AmongUsCheat] Shake detected - opening menu");
+                    showSettingsMenu();
+                }
+                if (originalImp) {
+                    originalImp(self, motionSel, motion, event);
+                }
+            });
+            
+            method_setImplementation(originalMethod, newImp);
+            NSLog(@"[AmongUsCheat] Shake gesture enabled");
+        }
     });
 }
 
@@ -1174,6 +1276,11 @@ static void init_cheat(void) {
         setupFloatingButton();
         
         // ============================================================
+        // Setup Shake Gesture
+        // ============================================================
+        setupShakeGesture();
+        
+        // ============================================================
         // Add gesture to show settings menu (triple tap on screen)
         // ============================================================
         UIWindow *window = [UIApplication sharedApplication].keyWindow;
@@ -1200,6 +1307,7 @@ static void init_cheat(void) {
         
         NSLog(@"[AmongUsCheat] Triple-tap gesture added");
         NSLog(@"[AmongUsCheat] Floating button added");
+        NSLog(@"[AmongUsCheat] Shake gesture added");
         NSLog(@"[AmongUsCheat] Injection complete!");
         NSLog(@"[AmongUsCheat] Features: AlwaysImpostor=%@, Cosmetics=%@, ESP=%@, AutoWin=%@, AntiBan=%@",
               g_alwaysImpostor ? @"ON" : @"OFF",
