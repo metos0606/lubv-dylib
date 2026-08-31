@@ -50,10 +50,6 @@ static void handleTripleTap(UIGestureRecognizer *gesture);
 // MARK: - Memory Protection Helper
 // ============================================================
 
-static void enable_writing(void *ptr, size_t size) {
-    uintptr_t page = (uintptr_t)ptr & ~(uintptr_t)(PAGE_SIZE - 1);
-    mprotect((void *)page, size + ((uintptr_t)ptr - page), PROT_READ | PROT_WRITE | PROT_EXEC);
-}
 
 // ============================================================
 // MARK: - Game State Tracking
