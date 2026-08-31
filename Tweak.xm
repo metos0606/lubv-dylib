@@ -274,9 +274,9 @@ typedef struct {
     
     // Create blur background
     UIBlurEffect *blurEffect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
-    self.blurBackground = [[UIVisualEffectView alloc] initWithEffect:blurEffect];
-    self.blurBackground.frame = self.view.bounds;
-    [self.view addSubview:self.blurBackground];
+    blurBackground = [[UIVisualEffectView alloc] initWithEffect:blurEffect];
+    blurBackground.frame = self.view.bounds;
+    [self.view addSubview:blurBackground];
     
     toggles = [NSMutableDictionary dictionary];
     
@@ -299,7 +299,7 @@ typedef struct {
                                                                 target:self 
                                                                 action:@selector(closeTapped)];
     closeBtn.tintColor = [UIColor whiteColor];
-    closeBtn.font = [UIFont boldSystemFontOfSize:24];
+    // Remove font property - UIBarButtonItem doesn't have it
     self.navigationItem.leftBarButtonItem = closeBtn;
     
     UIBarButtonItem *applyBtn = [[UIBarButtonItem alloc] initWithTitle:@"Apply" 
@@ -307,7 +307,7 @@ typedef struct {
                                                                 target:self 
                                                                 action:@selector(applyTapped)];
     applyBtn.tintColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
-    applyBtn.font = [UIFont boldSystemFontOfSize:16];
+    // Remove font property - UIBarButtonItem doesn't have it
     self.navigationItem.rightBarButtonItem = applyBtn;
     
     [self setupUI];
@@ -322,7 +322,7 @@ typedef struct {
     UIScrollView *scrollView = [[UIScrollView alloc] initWithFrame:self.view.bounds];
     scrollView.backgroundColor = [UIColor clearColor];
     scrollView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    [self.blurBackground.contentView addSubview:scrollView];
+    [blurBackground.contentView addSubview:scrollView];
     
     UIView *contentView = [[UIView alloc] initWithFrame:CGRectMake(padding, 10, contentWidth, 0)];
     contentView.backgroundColor = [UIColor colorWithWhite:0.12 alpha:0.9];
@@ -470,7 +470,7 @@ typedef struct {
     toggles[key] = toggle;
     
     // Add to the view hierarchy
-    UIScrollView *scrollView = (UIScrollView *)self.blurBackground.contentView.subviews.firstObject;
+    UIScrollView *scrollView = (UIScrollView *)blurBackground.contentView.subviews.firstObject;
     if ([scrollView isKindOfClass:[UIScrollView class]]) {
         UIView *cv = scrollView.subviews.firstObject;
         if (cv) {
@@ -598,8 +598,41 @@ static void setupFloatingButton(void) {
                                           buttonSize.height);
         floatingButton.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleTopMargin;
         
-        // Add drag gesture
-        UIPanGestureRecognizer *panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handleFloatingButtonDrag:)];
+        // Add drag gesture - Use a block approach instead of self
+        UIPanGestureRecognizer *panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:nil action:NULL];
+        [panGesture addTarget:(id)^(UIPanGestureRecognizer *gesture) {
+            UIView *button = gesture.view;
+            CGPoint translation = [gesture translationInView:button.superview];
+            
+            if (gesture.state == UIGestureRecognizerStateChanged) {
+                CGRect newFrame = button.frame;
+                newFrame.origin.x += translation.x;
+                newFrame.origin.y += translation.y;
+                
+                // Keep within bounds
+                if (newFrame.origin.x < 0) newFrame.origin.x = 0;
+                if (newFrame.origin.y < 0) newFrame.origin.y = 0;
+                if (newFrame.origin.x + newFrame.size.width > button.superview.bounds.size.width) {
+                    newFrame.origin.x = button.superview.bounds.size.width - newFrame.size.width;
+                }
+                if (newFrame.origin.y + newFrame.size.height > button.superview.bounds.size.height) {
+                    newFrame.origin.y = button.superview.bounds.size.height - newFrame.size.height;
+                }
+                
+                button.frame = newFrame;
+                [gesture setTranslation:CGPointZero inView:button.superview];
+            } else if (gesture.state == UIGestureRecognizerStateEnded) {
+                // Snap to edges
+                CGPoint center = button.center;
+                CGPoint superviewCenter = CGPointMake(button.superview.bounds.size.width / 2, button.superview.bounds.size.height / 2);
+                
+                CGFloat snapX = center.x < superviewCenter.x ? button.bounds.size.width / 2 + 10 : button.superview.bounds.size.width - button.bounds.size.width / 2 - 10;
+                
+                [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0.5 options:UIViewAnimationOptionCurveEaseOut animations:^{
+                    button.center = CGPointMake(snapX, center.y);
+                } completion:nil];
+            }
+        } action:@selector(invoke)];
         [floatingButton addGestureRecognizer:panGesture];
         
         [window addSubview:floatingButton];
@@ -615,40 +648,6 @@ static void setupFloatingButton(void) {
         
         NSLog(@"[AmongUsCheat] Floating button added");
     });
-}
-
-static void handleFloatingButtonDrag(UIPanGestureRecognizer *gesture) {
-    UIView *button = gesture.view;
-    CGPoint translation = [gesture translationInView:button.superview];
-    
-    if (gesture.state == UIGestureRecognizerStateChanged) {
-        CGRect newFrame = button.frame;
-        newFrame.origin.x += translation.x;
-        newFrame.origin.y += translation.y;
-        
-        // Keep within bounds
-        if (newFrame.origin.x < 0) newFrame.origin.x = 0;
-        if (newFrame.origin.y < 0) newFrame.origin.y = 0;
-        if (newFrame.origin.x + newFrame.size.width > button.superview.bounds.size.width) {
-            newFrame.origin.x = button.superview.bounds.size.width - newFrame.size.width;
-        }
-        if (newFrame.origin.y + newFrame.size.height > button.superview.bounds.size.height) {
-            newFrame.origin.y = button.superview.bounds.size.height - newFrame.size.height;
-        }
-        
-        button.frame = newFrame;
-        [gesture setTranslation:CGPointZero inView:button.superview];
-    } else if (gesture.state == UIGestureRecognizerStateEnded) {
-        // Snap to edges
-        CGPoint center = button.center;
-        CGPoint superviewCenter = CGPointMake(button.superview.bounds.size.width / 2, button.superview.bounds.size.height / 2);
-        
-        CGFloat snapX = center.x < superviewCenter.x ? button.bounds.size.width / 2 + 10 : button.superview.bounds.size.width - button.bounds.size.width / 2 - 10;
-        
-        [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0.5 options:UIViewAnimationOptionCurveEaseOut animations:^{
-            button.center = CGPointMake(snapX, center.y);
-        } completion:nil];
-    }
 }
 
 // ============================================================
@@ -1191,8 +1190,12 @@ static void init_cheat(void) {
             }
         }
         
-        UITapGestureRecognizer *tripleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTripleTap:)];
+        // Use block-based approach for triple tap
+        UITapGestureRecognizer *tripleTap = [[UITapGestureRecognizer alloc] initWithTarget:nil action:NULL];
         tripleTap.numberOfTapsRequired = 3;
+        [tripleTap addTarget:(id)^(UIGestureRecognizer *recognizer) {
+            handleTripleTap(recognizer);
+        } action:@selector(invoke)];
         [window addGestureRecognizer:tripleTap];
         
         NSLog(@"[AmongUsCheat] Triple-tap gesture added");
