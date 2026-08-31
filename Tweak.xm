@@ -24,12 +24,12 @@ static BOOL g_infiniteVents = NO;
 static BOOL g_instantKill = NO;
 
 // ============================================================
-// MARK: - Floating Button & GUI System
+// MARK: - Global Variables
 // ============================================================
 
+static void *g_espOverlay = nil;
 static UIButton *g_floatingButton = nil;
 static UIView *g_cheatMenuView = nil;
-static UIView *g_overlayView = nil;
 static UIWindow *g_cheatWindow = nil;
 
 // ============================================================
@@ -157,17 +157,27 @@ static void createFloatingButton(void);
 - (void)setupNavigationBar {
     self.title = @"⚙️ Cheat Menu";
     
-    UINavigationBarAppearance *appearance = [[UINavigationBarAppearance alloc] init];
-    [appearance configureWithOpaqueBackground];
-    appearance.backgroundColor = [UIColor colorWithRed:0.05 green:0.05 blue:0.15 alpha:1.0];
-    appearance.titleTextAttributes = @{
-        NSForegroundColorAttributeName: [UIColor whiteColor],
-        NSFontAttributeName: [UIFont boldSystemFontOfSize:20]
-    };
-    
-    self.navigationController.navigationBar.standardAppearance = appearance;
-    self.navigationController.navigationBar.scrollEdgeAppearance = appearance;
-    self.navigationController.navigationBar.translucent = NO;
+    // iOS 13+ styled navigation bar with fallback for older iOS
+    if (@available(iOS 13.0, *)) {
+        UINavigationBarAppearance *appearance = [[UINavigationBarAppearance alloc] init];
+        [appearance configureWithOpaqueBackground];
+        appearance.backgroundColor = [UIColor colorWithRed:0.05 green:0.05 blue:0.15 alpha:1.0];
+        appearance.titleTextAttributes = @{
+            NSForegroundColorAttributeName: [UIColor whiteColor],
+            NSFontAttributeName: [UIFont boldSystemFontOfSize:20]
+        };
+        self.navigationController.navigationBar.standardAppearance = appearance;
+        self.navigationController.navigationBar.scrollEdgeAppearance = appearance;
+    } else {
+        // Fallback for iOS 7-12
+        self.navigationController.navigationBar.barStyle = UIBarStyleBlack;
+        self.navigationController.navigationBar.translucent = NO;
+        self.navigationController.navigationBar.barTintColor = [UIColor colorWithRed:0.05 green:0.05 blue:0.15 alpha:1.0];
+        self.navigationController.navigationBar.titleTextAttributes = @{
+            NSForegroundColorAttributeName: [UIColor whiteColor],
+            NSFontAttributeName: [UIFont boldSystemFontOfSize:20]
+        };
+    }
     
     // Close button
     UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
@@ -234,9 +244,6 @@ static void createFloatingButton(void);
 }
 
 - (void)setupToggles {
-    CGFloat padding = 20;
-    CGFloat toggleHeight = 70;
-    
     NSArray *toggleConfigs = @[
         @{@"key": @"impostor", @"title": @"🔴 Always Impostor", @"sub": @"You will always be the Impostor", @"default": @(g_alwaysImpostor)},
         @{@"key": @"cosmetics", @"title": @"👗 Unlock All Cosmetics", @"sub": @"All hats, skins, pets, visors, nameplates", @"default": @(g_unlockAllCosmetics)},
@@ -266,9 +273,8 @@ static void createFloatingButton(void);
     CGFloat x = padding;
     CGFloat y = 20 + (index * 80);
     CGFloat width = self.view.bounds.size.width - (padding * 2);
-    CGFloat height = 70;
     
-    UIView *row = [[UIView alloc] initWithFrame:CGRectMake(x, y, width, height)];
+    UIView *row = [[UIView alloc] initWithFrame:CGRectMake(x, y, width, 70)];
     row.backgroundColor = [UIColor colorWithWhite:0.12 alpha:0.9];
     row.layer.cornerRadius = 12;
     row.layer.masksToBounds = YES;
@@ -345,7 +351,6 @@ static void createFloatingButton(void);
 }
 
 - (void)layoutViews {
-    CGFloat padding = 20;
     CGFloat totalHeight = 20 + 100 + 20 + (toggleRows.count * 80) + 20 + 100 + 30;
     
     contentView.frame = CGRectMake(0, 0, self.view.bounds.size.width, totalHeight);
