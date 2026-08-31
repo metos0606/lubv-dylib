@@ -866,10 +866,9 @@ static void init_cheat(void) {
                 window = [[UIApplication sharedApplication].windows firstObject];
             }
             
-            UITapGestureRecognizer *tripleTap = [[UITapGestureRecognizer alloc] init];
-            tripleTap.numberOfTapsRequired = 3;
-            [tripleTap addTarget:tripleTap action:@selector(handleTripleTap:)];
-            [window addGestureRecognizer:tripleTap];
+        UITapGestureRecognizer *tripleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTripleTap:)];
+        tripleTap.numberOfTapsRequired = 3;
+        [window addGestureRecognizer:tripleTap];
             
             NSLog(@"[AmongUsCheat] Triple-tap gesture added to show settings menu");
         });
