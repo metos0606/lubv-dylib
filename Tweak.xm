@@ -9,6 +9,7 @@
 //  - Auto Win
 //  - Anti-Ban features
 //  - Simple settings menu with toggles
+//  - Floating button to open GUI
 //
 
 #import <Foundation/Foundation.h>
@@ -47,11 +48,6 @@ static void showSettingsMenu(void);
 static void handleTripleTap(UIGestureRecognizer *gesture);
 
 // ============================================================
-// MARK: - Memory Protection Helper
-// ============================================================
-
-
-// ============================================================
 // MARK: - Game State Tracking
 // ============================================================
 
@@ -63,7 +59,6 @@ typedef struct {
     void *gameManager;
     void *shipStatus;
 } GameState;
-
 
 // ============================================================
 // MARK: - Class Definitions for Runtime Hooking
@@ -109,12 +104,166 @@ typedef struct {
 @end
 
 // ============================================================
-// MARK: - Settings Menu GUI
+// MARK: - Floating Action Button for GUI
+// ============================================================
+
+@interface FloatingMenuButton : UIButton
+@property (nonatomic, strong) UIVisualEffectView *blurView;
+@property (nonatomic, strong) UILabel *iconLabel;
+@end
+
+@implementation FloatingMenuButton
+
+- (instancetype)init {
+    self = [super initWithFrame:CGRectMake(0, 0, 65, 65)];
+    if (self) {
+        // Setup blur effect
+        UIBlurEffect *blurEffect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
+        self.blurView = [[UIVisualEffectView alloc] initWithEffect:blurEffect];
+        self.blurView.frame = self.bounds;
+        self.blurView.layer.cornerRadius = 32.5;
+        self.blurView.layer.masksToBounds = YES;
+        self.blurView.userInteractionEnabled = NO;
+        [self addSubview:self.blurView];
+        
+        // Add gradient border
+        CAGradientLayer *gradientBorder = [CAGradientLayer layer];
+        gradientBorder.frame = self.bounds;
+        gradientBorder.cornerRadius = 32.5;
+        gradientBorder.colors = @[
+            (id)[UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.0 green:0.6 blue:1.0 alpha:1.0].CGColor
+        ];
+        gradientBorder.startPoint = CGPointMake(0, 0);
+        gradientBorder.endPoint = CGPointMake(1, 1);
+        
+        CAShapeLayer *shapeLayer = [CAShapeLayer layer];
+        shapeLayer.lineWidth = 2.5;
+        shapeLayer.path = [UIBezierPath bezierPathWithRoundedRect:self.bounds cornerRadius:32.5].CGPath;
+        shapeLayer.fillColor = [UIColor clearColor].CGColor;
+        shapeLayer.strokeColor = [UIColor whiteColor].CGColor;
+        gradientBorder.mask = shapeLayer;
+        [self.layer addSublayer:gradientBorder];
+        
+        // Icon (using emoji with shadow)
+        self.iconLabel = [[UILabel alloc] initWithFrame:self.bounds];
+        self.iconLabel.text = @"🎮";
+        self.iconLabel.font = [UIFont systemFontOfSize:28];
+        self.iconLabel.textAlignment = NSTextAlignmentCenter;
+        self.iconLabel.textColor = [UIColor whiteColor];
+        self.iconLabel.layer.shadowColor = [UIColor blackColor].CGColor;
+        self.iconLabel.layer.shadowOffset = CGSizeMake(0, 2);
+        self.iconLabel.layer.shadowOpacity = 0.5;
+        self.iconLabel.layer.shadowRadius = 4;
+        self.iconLabel.userInteractionEnabled = NO;
+        [self addSubview:self.iconLabel];
+        
+        // Add pulsing animation
+        [self setupPulseAnimation];
+        
+        // Shadow for the button itself
+        self.layer.shadowColor = [UIColor blackColor].CGColor;
+        self.layer.shadowOffset = CGSizeMake(0, 4);
+        self.layer.shadowOpacity = 0.4;
+        self.layer.shadowRadius = 8;
+        
+        // Add target
+        [self addTarget:self action:@selector(buttonTapped) forControlEvents:UIControlEventTouchUpInside];
+        
+        // Haptic feedback on touch down
+        [self addTarget:self action:@selector(buttonTouchDown) forControlEvents:UIControlEventTouchDown];
+        [self addTarget:self action:@selector(buttonTouchUp) forControlEvents:UIControlEventTouchUpInside | UIControlEventTouchUpOutside];
+    }
+    return self;
+}
+
+- (void)setupPulseAnimation {
+    CABasicAnimation *pulse = [CABasicAnimation animationWithKeyPath:@"transform.scale"];
+    pulse.duration = 1.5;
+    pulse.fromValue = @1.0;
+    pulse.toValue = @1.08;
+    pulse.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+    pulse.autoreverses = YES;
+    pulse.repeatCount = HUGE_VALF;
+    [self.layer addAnimation:pulse forKey:@"pulse"];
+}
+
+- (void)buttonTouchDown {
+    [UIView animateWithDuration:0.1 animations:^{
+        self.transform = CGAffineTransformMakeScale(0.92, 0.92);
+        self.iconLabel.transform = CGAffineTransformMakeScale(0.92, 0.92);
+    }];
+    
+    // Light haptic feedback
+    if (@available(iOS 10.0, *)) {
+        UIImpactFeedbackGenerator *generator = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+        [generator impactOccurred];
+    }
+}
+
+- (void)buttonTouchUp {
+    [UIView animateWithDuration:0.2 delay:0 usingSpringWithDamping:0.5 initialSpringVelocity:0.5 options:UIViewAnimationOptionCurveEaseOut animations:^{
+        self.transform = CGAffineTransformIdentity;
+        self.iconLabel.transform = CGAffineTransformIdentity;
+    } completion:nil];
+}
+
+- (void)buttonTapped {
+    [self buttonTouchUp];
+    
+    // Success haptic feedback
+    if (@available(iOS 10.0, *)) {
+        UINotificationFeedbackGenerator *generator = [[UINotificationFeedbackGenerator alloc] init];
+        [generator notificationOccurred:UINotificationFeedbackTypeSuccess];
+    }
+    
+    // Animate button rotation
+    [UIView animateWithDuration:0.3 animations:^{
+        self.transform = CGAffineTransformMakeRotation(-M_PI_4);
+    } completion:^(BOOL finished) {
+        [UIView animateWithDuration:0.3 animations:^{
+            self.transform = CGAffineTransformIdentity;
+        } completion:^(BOOL finished) {
+            showSettingsMenu();
+        }];
+    }];
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    self.blurView.frame = self.bounds;
+    self.iconLabel.frame = self.bounds;
+    
+    // Update gradient border
+    for (CALayer *layer in self.layer.sublayers) {
+        if ([layer isKindOfClass:[CAGradientLayer class]]) {
+            layer.frame = self.bounds;
+            layer.cornerRadius = self.bounds.size.width / 2;
+            for (CALayer *maskLayer in layer.sublayers) {
+                if ([maskLayer isKindOfClass:[CAShapeLayer class]]) {
+                    ((CAShapeLayer *)maskLayer).path = [UIBezierPath bezierPathWithRoundedRect:self.bounds cornerRadius:self.bounds.size.width / 2].CGPath;
+                }
+            }
+        }
+    }
+}
+
+- (void)setHighlighted:(BOOL)highlighted {
+    [super setHighlighted:highlighted];
+    // Prevent default highlight behavior
+}
+
+@end
+
+// ============================================================
+// MARK: - Enhanced Settings Menu with Animations
 // ============================================================
 
 @interface CheatSettingsViewController : UIViewController {
     NSMutableDictionary *toggles;
     UILabel *statusLabel;
+    UIView *headerView;
+    UIVisualEffectView *blurBackground;
 }
 @end
 
@@ -123,20 +272,34 @@ typedef struct {
 - (void)viewDidLoad {
     [super viewDidLoad];
     
+    // Create blur background
+    UIBlurEffect *blurEffect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
+    self.blurBackground = [[UIVisualEffectView alloc] initWithEffect:blurEffect];
+    self.blurBackground.frame = self.view.bounds;
+    [self.view addSubview:self.blurBackground];
+    
     toggles = [NSMutableDictionary dictionary];
     
-    self.view.backgroundColor = [UIColor colorWithWhite:0.1 alpha:0.95];
-    self.title = @"Cheat Menu";
+    // Setup navigation bar with gradient
+    self.title = @"⚙️ Cheat Menu";
     
     self.navigationController.navigationBar.barStyle = UIBarStyleBlack;
-    self.navigationController.navigationBar.translucent = NO;
-    self.navigationController.navigationBar.barTintColor = [UIColor colorWithRed:0.15 green:0.15 blue:0.15 alpha:1.0];
+    self.navigationController.navigationBar.translucent = YES;
+    self.navigationController.navigationBar.barTintColor = [UIColor clearColor];
+    self.navigationController.navigationBar.backgroundColor = [UIColor clearColor];
+    
+    // Custom title attributes
+    [self.navigationController.navigationBar setTitleTextAttributes:@{
+        NSForegroundColorAttributeName: [UIColor whiteColor],
+        NSFontAttributeName: [UIFont boldSystemFontOfSize:22]
+    }];
     
     UIBarButtonItem *closeBtn = [[UIBarButtonItem alloc] initWithTitle:@"✕" 
                                                                  style:UIBarButtonItemStylePlain 
                                                                 target:self 
                                                                 action:@selector(closeTapped)];
     closeBtn.tintColor = [UIColor whiteColor];
+    closeBtn.font = [UIFont boldSystemFontOfSize:24];
     self.navigationItem.leftBarButtonItem = closeBtn;
     
     UIBarButtonItem *applyBtn = [[UIBarButtonItem alloc] initWithTitle:@"Apply" 
@@ -144,6 +307,7 @@ typedef struct {
                                                                 target:self 
                                                                 action:@selector(applyTapped)];
     applyBtn.tintColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
+    applyBtn.font = [UIFont boldSystemFontOfSize:16];
     self.navigationItem.rightBarButtonItem = applyBtn;
     
     [self setupUI];
@@ -158,37 +322,57 @@ typedef struct {
     UIScrollView *scrollView = [[UIScrollView alloc] initWithFrame:self.view.bounds];
     scrollView.backgroundColor = [UIColor clearColor];
     scrollView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    [self.view addSubview:scrollView];
+    [self.blurBackground.contentView addSubview:scrollView];
     
-    UIView *contentView = [[UIView alloc] initWithFrame:CGRectMake(padding, 0, contentWidth, 0)];
-    contentView.backgroundColor = [UIColor colorWithWhite:0.15 alpha:1.0];
-    contentView.layer.cornerRadius = 16;
+    UIView *contentView = [[UIView alloc] initWithFrame:CGRectMake(padding, 10, contentWidth, 0)];
+    contentView.backgroundColor = [UIColor colorWithWhite:0.12 alpha:0.9];
+    contentView.layer.cornerRadius = 20;
     contentView.layer.masksToBounds = YES;
+    
+    // Add border glow
+    contentView.layer.borderColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:0.3].CGColor;
+    contentView.layer.borderWidth = 1;
     [scrollView addSubview:contentView];
     
-    // Title
-    UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, innerY, contentWidth - (padding * 2), 30)];
+    // Title with gradient
+    headerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, contentWidth, 80)];
+    
+    CAGradientLayer *gradient = [CAGradientLayer layer];
+    gradient.frame = headerView.bounds;
+    gradient.colors = @[
+        (id)[UIColor colorWithRed:0.1 green:0.4 blue:0.2 alpha:1.0].CGColor,
+        (id)[UIColor colorWithRed:0.0 green:0.2 blue:0.4 alpha:1.0].CGColor
+    ];
+    gradient.startPoint = CGPointMake(0, 0);
+    gradient.endPoint = CGPointMake(1, 1);
+    [headerView.layer insertSublayer:gradient atIndex:0];
+    
+    UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 25, contentWidth - 40, 30)];
     titleLabel.text = @"⚙️ Cheat Settings";
     titleLabel.textColor = [UIColor whiteColor];
-    titleLabel.font = [UIFont boldSystemFontOfSize:22];
+    titleLabel.font = [UIFont boldSystemFontOfSize:24];
     titleLabel.textAlignment = NSTextAlignmentCenter;
-    [contentView addSubview:titleLabel];
-    innerY += 40;
+    titleLabel.layer.shadowColor = [UIColor blackColor].CGColor;
+    titleLabel.layer.shadowOffset = CGSizeMake(0, 2);
+    titleLabel.layer.shadowOpacity = 0.3;
+    titleLabel.layer.shadowRadius = 4;
+    [headerView addSubview:titleLabel];
     
-    // Status
-    statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, innerY, contentWidth - (padding * 2), 20)];
-    statusLabel.text = @"Status: Ready";
+    // Status badge
+    statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(contentWidth/2 - 60, 55, 120, 20)];
+    statusLabel.text = @"✅ Ready";
     statusLabel.textColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
-    statusLabel.font = [UIFont systemFontOfSize:14];
+    statusLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
     statusLabel.textAlignment = NSTextAlignmentCenter;
-    [contentView addSubview:statusLabel];
-    innerY += 30;
+    statusLabel.backgroundColor = [UIColor colorWithWhite:0 alpha:0.4];
+    statusLabel.layer.cornerRadius = 10;
+    statusLabel.clipsToBounds = YES;
+    statusLabel.layer.borderColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:0.3].CGColor;
+    statusLabel.layer.borderWidth = 1;
+    [headerView addSubview:statusLabel];
     
-    // Separator
-    UIView *sep = [[UIView alloc] initWithFrame:CGRectMake(padding, innerY, contentWidth - (padding * 2), 1)];
-    sep.backgroundColor = [UIColor colorWithWhite:0.3 alpha:1.0];
-    [contentView addSubview:sep];
-    innerY += 20;
+    [contentView addSubview:headerView];
+    innerY = 85;
     
     // Toggle helpers - store toggles in dictionary with keys
     innerY += [self createToggleWithKey:@"impostor" title:@"🔴 Always Impostor" 
@@ -223,21 +407,30 @@ typedef struct {
     
     // Separator
     UIView *sep2 = [[UIView alloc] initWithFrame:CGRectMake(padding, innerY, contentWidth - (padding * 2), 1)];
-    sep2.backgroundColor = [UIColor colorWithWhite:0.3 alpha:1.0];
+    sep2.backgroundColor = [UIColor colorWithWhite:0.3 alpha:0.5];
     [contentView addSubview:sep2];
     innerY += 20;
     
-    // Credits
+    // Credits with animated text
     UILabel *creditsLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, innerY, contentWidth - (padding * 2), 20)];
-    creditsLabel.text = @"Made with ❤️ for LO";
+    creditsLabel.text = @"Made with ❤️ for the community";
     creditsLabel.textColor = [UIColor colorWithWhite:0.5 alpha:1.0];
     creditsLabel.font = [UIFont systemFontOfSize:12];
     creditsLabel.textAlignment = NSTextAlignmentCenter;
     [contentView addSubview:creditsLabel];
     innerY += 30;
     
-    contentView.frame = CGRectMake(padding, 20, contentWidth, innerY);
-    scrollView.contentSize = CGSizeMake(screenWidth, innerY + 40);
+    // Version info
+    UILabel *versionLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, innerY, contentWidth - (padding * 2), 15)];
+    versionLabel.text = @"v2.0 • Triple-tap to open • Floating button available";
+    versionLabel.textColor = [UIColor colorWithWhite:0.3 alpha:1.0];
+    versionLabel.font = [UIFont systemFontOfSize:10];
+    versionLabel.textAlignment = NSTextAlignmentCenter;
+    [contentView addSubview:versionLabel];
+    innerY += 25;
+    
+    contentView.frame = CGRectMake(padding, 10, contentWidth, innerY);
+    scrollView.contentSize = CGSizeMake(screenWidth, innerY + 30);
 }
 
 - (CGFloat)createToggleWithKey:(NSString *)key title:(NSString *)title 
@@ -248,6 +441,7 @@ typedef struct {
     toggle.onTintColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
     toggle.tintColor = [UIColor colorWithWhite:0.3 alpha:1.0];
     toggle.on = defaultValue;
+    toggle.tag = [toggles count];
     
     CGFloat switchWidth = 51;
     toggle.frame = CGRectMake(width - switchWidth, y + 14, switchWidth, 31);
@@ -263,9 +457,11 @@ typedef struct {
     subtitleLabel.font = [UIFont systemFontOfSize:12];
     
     UIView *wrapper = [[UIView alloc] initWithFrame:CGRectMake(0, y, width, 60)];
-    wrapper.backgroundColor = [UIColor colorWithWhite:0.12 alpha:1.0];
-    wrapper.layer.cornerRadius = 12;
+    wrapper.backgroundColor = [UIColor colorWithWhite:0.08 alpha:0.8];
+    wrapper.layer.cornerRadius = 14;
     wrapper.layer.masksToBounds = YES;
+    wrapper.layer.borderColor = [UIColor colorWithWhite:0.2 alpha:0.5].CGColor;
+    wrapper.layer.borderWidth = 0.5;
     
     [wrapper addSubview:titleLabel];
     [wrapper addSubview:subtitleLabel];
@@ -274,7 +470,7 @@ typedef struct {
     toggles[key] = toggle;
     
     // Add to the view hierarchy
-    UIScrollView *scrollView = (UIScrollView *)self.view.subviews.firstObject;
+    UIScrollView *scrollView = (UIScrollView *)self.blurBackground.contentView.subviews.firstObject;
     if ([scrollView isKindOfClass:[UIScrollView class]]) {
         UIView *cv = scrollView.subviews.firstObject;
         if (cv) {
@@ -286,7 +482,15 @@ typedef struct {
 }
 
 - (void)closeTapped {
-    [self dismissViewControllerAnimated:YES completion:nil];
+    // Animated dismiss
+    [UIView animateWithDuration:0.3 animations:^{
+        self.view.transform = CGAffineTransformMakeScale(0.95, 0.95);
+        self.view.alpha = 0;
+    } completion:^(BOOL finished) {
+        self.view.transform = CGAffineTransformIdentity;
+        self.view.alpha = 1;
+        [self dismissViewControllerAnimated:YES completion:nil];
+    }];
 }
 
 - (void)applyTapped {
@@ -302,8 +506,16 @@ typedef struct {
     if (autoWinToggle) g_autoWinEnabled = autoWinToggle.on;
     if (antiBanToggle) g_noBanMode = antiBanToggle.on;
     
-    statusLabel.text = @"✅ Applied!";
-    statusLabel.textColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
+    // Animated status update
+    [UIView animateWithDuration:0.3 animations:^{
+        statusLabel.text = @"✅ Applied!";
+        statusLabel.textColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
+        statusLabel.transform = CGAffineTransformMakeScale(1.1, 1.1);
+    } completion:^(BOOL finished) {
+        [UIView animateWithDuration:0.3 animations:^{
+            statusLabel.transform = CGAffineTransformIdentity;
+        }];
+    }];
     
     if (g_espOverlay) {
         UIView *overlay = (__bridge UIView *)g_espOverlay;
@@ -313,15 +525,18 @@ typedef struct {
         }
     }
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        statusLabel.text = @"Status: Ready";
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [UIView animateWithDuration:0.3 animations:^{
+            statusLabel.text = @"✅ Ready";
+            statusLabel.textColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
+        }];
     });
 }
 
 @end
 
 // ============================================================
-// MARK: - Show Settings Menu
+// MARK: - Show Settings Menu (Enhanced)
 // ============================================================
 
 static void showSettingsMenu(void) {
@@ -336,15 +551,104 @@ static void showSettingsMenu(void) {
         nav.modalPresentationStyle = UIModalPresentationFullScreen;
         nav.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
         
+        // Add animation
+        nav.view.alpha = 0;
         UIViewController *rootVC = window.rootViewController;
         if (rootVC) {
-            [rootVC presentViewController:nav animated:YES completion:nil];
+            [rootVC presentViewController:nav animated:NO completion:^{
+                [UIView animateWithDuration:0.3 animations:^{
+                    nav.view.alpha = 1;
+                }];
+            }];
         }
     });
 }
 
-static void handleTripleTap(UIGestureRecognizer *gesture) {
-    showSettingsMenu();
+// ============================================================
+// MARK: - Floating Button Setup
+// ============================================================
+
+static FloatingMenuButton *floatingButton = nil;
+
+static void setupFloatingButton(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        // Remove existing button if any
+        if (floatingButton) {
+            [floatingButton removeFromSuperview];
+            floatingButton = nil;
+        }
+        
+        UIWindow *window = [UIApplication sharedApplication].keyWindow;
+        if (!window) {
+            window = [[UIApplication sharedApplication].windows firstObject];
+        }
+        
+        floatingButton = [[FloatingMenuButton alloc] init];
+        
+        // Position in bottom-right corner with safe area
+        CGFloat bottomInset = 0;
+        if (@available(iOS 11.0, *)) {
+            bottomInset = window.safeAreaInsets.bottom;
+        }
+        
+        CGSize buttonSize = floatingButton.bounds.size;
+        floatingButton.frame = CGRectMake(window.bounds.size.width - buttonSize.width - 20,
+                                          window.bounds.size.height - buttonSize.height - bottomInset - 20,
+                                          buttonSize.width,
+                                          buttonSize.height);
+        floatingButton.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleTopMargin;
+        
+        // Add drag gesture
+        UIPanGestureRecognizer *panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handleFloatingButtonDrag:)];
+        [floatingButton addGestureRecognizer:panGesture];
+        
+        [window addSubview:floatingButton];
+        [window bringSubviewToFront:floatingButton];
+        
+        // Entrance animation
+        floatingButton.transform = CGAffineTransformMakeScale(0.1, 0.1);
+        floatingButton.alpha = 0;
+        [UIView animateWithDuration:0.6 delay:0.5 usingSpringWithDamping:0.6 initialSpringVelocity:0.8 options:UIViewAnimationOptionCurveEaseOut animations:^{
+            floatingButton.transform = CGAffineTransformIdentity;
+            floatingButton.alpha = 1;
+        } completion:nil];
+        
+        NSLog(@"[AmongUsCheat] Floating button added");
+    });
+}
+
+static void handleFloatingButtonDrag(UIPanGestureRecognizer *gesture) {
+    UIView *button = gesture.view;
+    CGPoint translation = [gesture translationInView:button.superview];
+    
+    if (gesture.state == UIGestureRecognizerStateChanged) {
+        CGRect newFrame = button.frame;
+        newFrame.origin.x += translation.x;
+        newFrame.origin.y += translation.y;
+        
+        // Keep within bounds
+        if (newFrame.origin.x < 0) newFrame.origin.x = 0;
+        if (newFrame.origin.y < 0) newFrame.origin.y = 0;
+        if (newFrame.origin.x + newFrame.size.width > button.superview.bounds.size.width) {
+            newFrame.origin.x = button.superview.bounds.size.width - newFrame.size.width;
+        }
+        if (newFrame.origin.y + newFrame.size.height > button.superview.bounds.size.height) {
+            newFrame.origin.y = button.superview.bounds.size.height - newFrame.size.height;
+        }
+        
+        button.frame = newFrame;
+        [gesture setTranslation:CGPointZero inView:button.superview];
+    } else if (gesture.state == UIGestureRecognizerStateEnded) {
+        // Snap to edges
+        CGPoint center = button.center;
+        CGPoint superviewCenter = CGPointMake(button.superview.bounds.size.width / 2, button.superview.bounds.size.height / 2);
+        
+        CGFloat snapX = center.x < superviewCenter.x ? button.bounds.size.width / 2 + 10 : button.superview.bounds.size.width - button.bounds.size.width / 2 - 10;
+        
+        [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0.5 options:UIViewAnimationOptionCurveEaseOut animations:^{
+            button.center = CGPointMake(snapX, center.y);
+        } completion:nil];
+    }
 }
 
 // ============================================================
@@ -665,6 +969,14 @@ static void hooked_OnPlayerSpawn(id self, SEL sel, id player) {
 }
 
 // ============================================================
+// MARK: - Handle Triple Tap (Updated)
+// ============================================================
+
+static void handleTripleTap(UIGestureRecognizer *gesture) {
+    showSettingsMenu();
+}
+
+// ============================================================
 // MARK: - Injection Entry Point
 // ============================================================
 
@@ -858,30 +1170,33 @@ static void init_cheat(void) {
         }
         
         // ============================================================
-        // Add gesture to show settings menu (triple tap on screen)
+        // Setup Floating Button
         // ============================================================
-        // ============================================================
-        // Add gesture to show settings menu (triple tap on screen)
-        // ============================================================
-        dispatch_async(dispatch_get_main_queue(), ^{
-            UIWindow *window = [UIApplication sharedApplication].keyWindow;
-            if (!window) {
-                window = [[UIApplication sharedApplication].windows firstObject];
-            }
-            
-            UITapGestureRecognizer *tripleTap = [[UITapGestureRecognizer alloc] initWithTarget:nil action:NULL];
-            tripleTap.numberOfTapsRequired = 3;
-            
-            // Create a target wrapper to call the static function
-            [tripleTap addTarget:(id)^(UIGestureRecognizer *recognizer) {
-                handleTripleTap(recognizer);
-            } action:@selector(invoke)];
-            
-            [window addGestureRecognizer:tripleTap];
-            
-            NSLog(@"[AmongUsCheat] Triple-tap gesture added to show settings menu");
-        });
+        setupFloatingButton();
         
+        // ============================================================
+        // Add gesture to show settings menu (triple tap on screen)
+        // ============================================================
+        UIWindow *window = [UIApplication sharedApplication].keyWindow;
+        if (!window) {
+            window = [[UIApplication sharedApplication].windows firstObject];
+        }
+        
+        // Remove existing gestures to avoid duplicates
+        NSArray *gestures = [window.gestureRecognizers copy];
+        for (UIGestureRecognizer *gesture in gestures) {
+            if ([gesture isKindOfClass:[UITapGestureRecognizer class]] && 
+                ((UITapGestureRecognizer *)gesture).numberOfTapsRequired == 3) {
+                [window removeGestureRecognizer:gesture];
+            }
+        }
+        
+        UITapGestureRecognizer *tripleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTripleTap:)];
+        tripleTap.numberOfTapsRequired = 3;
+        [window addGestureRecognizer:tripleTap];
+        
+        NSLog(@"[AmongUsCheat] Triple-tap gesture added");
+        NSLog(@"[AmongUsCheat] Floating button added");
         NSLog(@"[AmongUsCheat] Injection complete!");
         NSLog(@"[AmongUsCheat] Features: AlwaysImpostor=%@, Cosmetics=%@, ESP=%@, AutoWin=%@, AntiBan=%@",
               g_alwaysImpostor ? @"ON" : @"OFF",
@@ -889,8 +1204,8 @@ static void init_cheat(void) {
               g_espEnabled ? @"ON" : @"OFF",
               g_autoWinEnabled ? @"ON" : @"OFF",
               g_noBanMode ? @"ON" : @"OFF");
-        });  // Closing brace for the dispatch_after from line 675
-    }   // Closing brace for init_cheat()
+    });
+}
 
 // ============================================================
 // MARK: - Command Handling (for debugging)
