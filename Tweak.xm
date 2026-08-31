@@ -890,8 +890,7 @@ static void init_cheat(void) {
               g_autoWinEnabled ? @"ON" : @"OFF",
               g_noBanMode ? @"ON" : @"OFF");
         });  // Closing brace for the dispatch_after from line 675
-        }   // Closing brace for init_cheat()
-        }
+    }   // Closing brace for init_cheat()
 
 // ============================================================
 // MARK: - Command Handling (for debugging)
