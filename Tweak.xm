@@ -1,32 +1,9 @@
-// LUBV Ultimate - Stable Final Edition
-// Only safe, working features
+// LUBV - Stable Minimal Edition
+// Only features that are confirmed working
 
 #import <substrate.h>
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
-#import <QuartzCore/QuartzCore.h>
-
-// ============================================================
-// FORWARD DECLARATIONS
-// ============================================================
-
-@class PlayerControl;
-@class Vent;
-@class SabotageManager;
-@class KillButtonManager;
-@class EmergencyButton;
-@class MeetingHud;
-@class PhantomRole;
-@class ShapeshifterRole;
-@class EngineerRole;
-@class DetectiveRole;
-@class TrackerRole;
-@class GuardianAngelRole;
-@class HatManager;
-@class PetManager;
-@class SkinManager;
-@class VisorManager;
-@class NamePlateManager;
 
 // ============================================================
 // SETTINGS MANAGER
@@ -44,16 +21,9 @@
 @property (nonatomic, assign) BOOL fastSpeed;
 @property (nonatomic, assign) BOOL unlimitedVision;
 @property (nonatomic, assign) BOOL seeGhosts;
-@property (nonatomic, assign) BOOL unlockAllIAP;
 @property (nonatomic, assign) BOOL unlimitedEmergencies;
 @property (nonatomic, assign) BOOL noClip;
 @property (nonatomic, assign) float playerSpeed;
-@property (nonatomic, assign) BOOL noPhantomCooldown;
-@property (nonatomic, assign) BOOL noShapeshifterCooldown;
-@property (nonatomic, assign) BOOL noEngineerCooldown;
-@property (nonatomic, assign) BOOL noDetectiveCooldown;
-@property (nonatomic, assign) BOOL noTrackerCooldown;
-@property (nonatomic, assign) BOOL noGuardianAngelCooldown;
 + (instancetype)sharedInstance;
 @end
 
@@ -75,16 +45,9 @@
         instance.fastSpeed = NO;
         instance.unlimitedVision = YES;
         instance.seeGhosts = YES;
-        instance.unlockAllIAP = NO;
         instance.unlimitedEmergencies = NO;
         instance.noClip = NO;
         instance.playerSpeed = 1.5;
-        instance.noPhantomCooldown = NO;
-        instance.noShapeshifterCooldown = NO;
-        instance.noEngineerCooldown = NO;
-        instance.noDetectiveCooldown = NO;
-        instance.noTrackerCooldown = NO;
-        instance.noGuardianAngelCooldown = NO;
     });
     return instance;
 }
@@ -92,7 +55,7 @@
 @end
 
 // ============================================================
-// BEAUTIFUL GUI BUTTON
+// GUI BUTTON
 // ============================================================
 
 @interface LUBVGUIButton : UIButton
@@ -102,7 +65,6 @@
 @property (nonatomic, assign) BOOL isMenuOpen;
 @property (nonatomic, strong) NSMutableDictionary *switches;
 @property (nonatomic, strong) UIVisualEffectView *blurView;
-@property (nonatomic, strong) UILabel *statusLabel;
 @property (nonatomic, strong) UISlider *speedSlider;
 @property (nonatomic, strong) UILabel *speedLabel;
 @end
@@ -112,38 +74,16 @@
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
     if (self) {
-        self.backgroundColor = [UIColor clearColor];
+        self.backgroundColor = [UIColor colorWithRed:0.91 green:0.27 blue:0.38 alpha:0.95];
         self.layer.cornerRadius = 30;
-        self.layer.masksToBounds = YES;
-        
-        UIVisualEffectView *glassView = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleLight]];
-        glassView.frame = self.bounds;
-        glassView.layer.cornerRadius = 30;
-        glassView.layer.masksToBounds = YES;
-        glassView.alpha = 0.85;
-        [self addSubview:glassView];
-        
-        CAGradientLayer *borderLayer = [CAGradientLayer layer];
-        borderLayer.frame = self.bounds;
-        borderLayer.colors = @[
-            (id)[UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:0.6].CGColor,
-            (id)[UIColor colorWithRed:0.8 green:0.2 blue:1.0 alpha:0.6].CGColor
-        ];
-        borderLayer.startPoint = CGPointMake(0, 0);
-        borderLayer.endPoint = CGPointMake(1, 1);
-        borderLayer.cornerRadius = 30;
-        [self.layer addSublayer:borderLayer];
-        
-        UILabel *iconLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 60, 60)];
-        iconLabel.text = @"⚡";
-        iconLabel.textAlignment = NSTextAlignmentCenter;
-        iconLabel.font = [UIFont systemFontOfSize:30];
-        [self addSubview:iconLabel];
-        
         self.layer.shadowColor = [UIColor blackColor].CGColor;
         self.layer.shadowOffset = CGSizeMake(0, 4);
-        self.layer.shadowRadius = 15;
-        self.layer.shadowOpacity = 0.3;
+        self.layer.shadowRadius = 12;
+        self.layer.shadowOpacity = 0.6;
+        
+        [self setTitle:@"⚡" forState:UIControlStateNormal];
+        [self setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        self.titleLabel.font = [UIFont boldSystemFontOfSize:28];
         
         self.panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePan:)];
         [self addGestureRecognizer:self.panGesture];
@@ -157,59 +97,38 @@
 }
 
 - (void)createMenu {
-    self.menuView = [[UIView alloc] initWithFrame:CGRectMake(-280, -450, 340, 520)];
-    self.menuView.backgroundColor = [UIColor clearColor];
-    self.menuView.layer.cornerRadius = 25;
+    self.menuView = [[UIView alloc] initWithFrame:CGRectMake(-260, -380, 300, 440)];
+    self.menuView.backgroundColor = [UIColor colorWithWhite:0.05 alpha:0.95];
+    self.menuView.layer.cornerRadius = 20;
     self.menuView.layer.shadowColor = [UIColor blackColor].CGColor;
-    self.menuView.layer.shadowOffset = CGSizeMake(0, 10);
-    self.menuView.layer.shadowRadius = 30;
-    self.menuView.layer.shadowOpacity = 0.5;
+    self.menuView.layer.shadowOffset = CGSizeMake(0, 4);
+    self.menuView.layer.shadowRadius = 12;
+    self.menuView.layer.shadowOpacity = 0.9;
     self.menuView.hidden = YES;
-    self.menuView.alpha = 0;
     [self addSubview:self.menuView];
     
-    self.blurView = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleDark]];
-    self.blurView.frame = self.menuView.bounds;
-    self.blurView.layer.cornerRadius = 25;
-    self.blurView.layer.masksToBounds = YES;
-    [self.menuView addSubview:self.blurView];
-    
-    CAGradientLayer *gradient = [CAGradientLayer layer];
-    gradient.frame = self.menuView.bounds;
-    gradient.colors = @[
-        (id)[UIColor colorWithRed:0.2 green:0.0 blue:0.4 alpha:0.3].CGColor,
-        (id)[UIColor colorWithRed:0.0 green:0.4 blue:0.8 alpha:0.1].CGColor
-    ];
-    gradient.cornerRadius = 25;
-    [self.menuView.layer addSublayer:gradient];
-    
-    UIView *titleBar = [[UIView alloc] initWithFrame:CGRectMake(0, 10, 340, 50)];
-    titleBar.backgroundColor = [UIColor clearColor];
+    // Title
+    UIView *titleBar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 300, 40)];
+    titleBar.backgroundColor = [UIColor colorWithRed:0.91 green:0.27 blue:0.38 alpha:0.2];
     [self.menuView addSubview:titleBar];
     
-    UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(50, 0, 240, 40)];
-    title.text = @"✦ LUBV CONTROLS ✦";
-    title.textColor = [UIColor whiteColor];
-    title.font = [UIFont boldSystemFontOfSize:20];
+    UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(60, 5, 180, 30)];
+    title.text = @"LUBV CONTROLS";
+    title.textColor = [UIColor colorWithRed:0.91 green:0.27 blue:0.38 alpha:1];
+    title.font = [UIFont boldSystemFontOfSize:16];
     title.textAlignment = NSTextAlignmentCenter;
-    title.layer.shadowColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:0.5].CGColor;
-    title.layer.shadowRadius = 10;
-    title.layer.shadowOpacity = 0.5;
     [titleBar addSubview:title];
     
     UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-    closeBtn.frame = CGRectMake(290, 10, 35, 35);
-    closeBtn.backgroundColor = [UIColor colorWithWhite:0.3 alpha:0.3];
-    closeBtn.layer.cornerRadius = 17.5;
+    closeBtn.frame = CGRectMake(260, 5, 30, 30);
     [closeBtn setTitle:@"✕" forState:UIControlStateNormal];
     [closeBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     closeBtn.titleLabel.font = [UIFont boldSystemFontOfSize:16];
     [closeBtn addTarget:self action:@selector(toggleMenu) forControlEvents:UIControlEventTouchUpInside];
     [titleBar addSubview:closeBtn];
     
-    self.scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(10, 65, 320, 440)];
+    self.scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(0, 40, 300, 400)];
     self.scrollView.showsVerticalScrollIndicator = NO;
-    self.scrollView.backgroundColor = [UIColor clearColor];
     [self.menuView addSubview:self.scrollView];
     
     NSArray *features = @[
@@ -225,90 +144,51 @@
         @"God Mode",
         @"Fast Speed",
         @"Unlimited Emergencies",
-        @"No Clip (Walk Walls)",
-        @"No Phantom Cooldown",
-        @"No Shapeshifter Cooldown",
-        @"No Engineer Cooldown",
-        @"No Detective Cooldown",
-        @"No Tracker Cooldown",
-        @"No Guardian Angel Cooldown",
-        @"Unlock All IAP"
+        @"No Clip (Walk Walls)"
     ];
     
     NSArray *keys = @[
         @"alwaysImpostor", @"noKillCooldown", @"alwaysCanKill",
         @"alwaysCanVent", @"noVentCooldown", @"alwaysCanSabotage",
         @"alwaysCanReport", @"unlimitedVision", @"seeGhosts",
-        @"godMode", @"fastSpeed", @"unlimitedEmergencies",
-        @"noClip", @"noPhantomCooldown", @"noShapeshifterCooldown",
-        @"noEngineerCooldown", @"noDetectiveCooldown",
-        @"noTrackerCooldown", @"noGuardianAngelCooldown",
-        @"unlockAllIAP"
+        @"godMode", @"fastSpeed", @"unlimitedEmergencies", @"noClip"
     ];
     
-    NSDictionary *icons = @{
-        @"Always Impostor": @"🎭",
-        @"No Kill Cooldown": @"⏱️",
-        @"Always Can Kill": @"🗡️",
-        @"Always Can Vent": @"💨",
-        @"No Vent Cooldown": @"🌀",
-        @"Always Can Sabotage": @"⚡",
-        @"Always Can Report": @"📢",
-        @"Unlimited Vision": @"🔭",
-        @"See Ghosts": @"👻",
-        @"God Mode": @"🛡️",
-        @"Fast Speed": @"🏃",
-        @"Unlimited Emergencies": @"📞",
-        @"No Clip (Walk Walls)": @"🚶",
-        @"No Phantom Cooldown": @"👻",
-        @"No Shapeshifter Cooldown": @"🔄",
-        @"No Engineer Cooldown": @"🔧",
-        @"No Detective Cooldown": @"🔍",
-        @"No Tracker Cooldown": @"📍",
-        @"No Guardian Angel Cooldown": @"😇",
-        @"Unlock All IAP": @"🎁"
-    };
-    
-    int yPos = 0;
-    
     for (int i = 0; i < features.count; i++) {
-        UIView *rowView = [[UIView alloc] initWithFrame:CGRectMake(5, yPos, 310, 44)];
-        rowView.backgroundColor = [UIColor colorWithWhite:0.15 alpha:0.4];
-        rowView.layer.cornerRadius = 12;
-        rowView.layer.borderWidth = 0.5;
-        rowView.layer.borderColor = [UIColor colorWithWhite:0.3 alpha:0.3].CGColor;
+        int y = 8 + (i * 36);
+        
+        UIView *rowView = [[UIView alloc] initWithFrame:CGRectMake(5, y, 290, 34)];
+        if (i % 2 == 0) {
+            rowView.backgroundColor = [UIColor colorWithWhite:0.15 alpha:0.5];
+        }
+        rowView.layer.cornerRadius = 8;
         [self.scrollView addSubview:rowView];
         
-        UILabel *iconLabel = [[UILabel alloc] initWithFrame:CGRectMake(10, 10, 24, 24)];
-        iconLabel.text = icons[features[i]] ?: @"•";
-        iconLabel.font = [UIFont systemFontOfSize:16];
-        [rowView addSubview:iconLabel];
-        
-        UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(40, 10, 160, 24)];
-        label.text = features[i];
-        label.textColor = [UIColor whiteColor];
-        label.font = [UIFont systemFontOfSize:13];
-        [rowView addSubview:label];
-        
         if ([keys[i] isEqualToString:@"fastSpeed"]) {
-            self.speedSlider = [[UISlider alloc] initWithFrame:CGRectMake(200, 6, 100, 32)];
+            UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(10, 5, 80, 24)];
+            label.text = @"Speed";
+            label.textColor = [UIColor whiteColor];
+            label.font = [UIFont systemFontOfSize:12];
+            [rowView addSubview:label];
+            
+            self.speedSlider = [[UISlider alloc] initWithFrame:CGRectMake(90, 4, 130, 26)];
             self.speedSlider.minimumValue = 1.0;
             self.speedSlider.maximumValue = 5.0;
             self.speedSlider.value = [LUBVSettings sharedInstance].playerSpeed;
-            self.speedSlider.tintColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:1.0];
+            self.speedSlider.tintColor = [UIColor colorWithRed:0.91 green:0.27 blue:0.38 alpha:1];
             [self.speedSlider addTarget:self action:@selector(speedChanged:) forControlEvents:UIControlEventValueChanged];
             [rowView addSubview:self.speedSlider];
             
-            self.speedLabel = [[UILabel alloc] initWithFrame:CGRectMake(280, 10, 25, 24)];
-            self.speedLabel.text = [NSString stringWithFormat:@"%.1f", self.speedSlider.value];
+            self.speedLabel = [[UILabel alloc] initWithFrame:CGRectMake(225, 5, 50, 24)];
+            self.speedLabel.text = [NSString stringWithFormat:@"%.1fx", self.speedSlider.value];
             self.speedLabel.textColor = [UIColor whiteColor];
             self.speedLabel.font = [UIFont systemFontOfSize:12];
             [rowView addSubview:self.speedLabel];
         } else {
-            UISwitch *switchControl = [[UISwitch alloc] initWithFrame:CGRectMake(240, 6, 50, 30)];
+            UISwitch *switchControl = [[UISwitch alloc] initWithFrame:CGRectMake(220, 2, 50, 30)];
             switchControl.tag = i;
-            switchControl.onTintColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:1.0];
-            switchControl.tintColor = [UIColor colorWithWhite:0.3 alpha:0.5];
+            switchControl.onTintColor = [UIColor colorWithRed:0.91 green:0.27 blue:0.38 alpha:1];
+            switchControl.transform = CGAffineTransformMakeScale(0.7, 0.7);
             [switchControl addTarget:self action:@selector(switchToggled:) forControlEvents:UIControlEventValueChanged];
             
             LUBVSettings *settings = [LUBVSettings sharedInstance];
@@ -317,27 +197,23 @@
             
             [rowView addSubview:switchControl];
             [self.switches setObject:switchControl forKey:keys[i]];
+            
+            UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(10, 5, 180, 24)];
+            label.text = features[i];
+            label.textColor = [UIColor whiteColor];
+            label.font = [UIFont systemFontOfSize:12];
+            [rowView addSubview:label];
         }
-        
-        yPos += 52;
     }
     
-    self.statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(10, yPos + 10, 300, 20)];
-    self.statusLabel.text = @"⚡ Drag to move • Tap to toggle";
-    self.statusLabel.textColor = [UIColor colorWithWhite:0.5 alpha:0.8];
-    self.statusLabel.font = [UIFont systemFontOfSize:10];
-    self.statusLabel.textAlignment = NSTextAlignmentCenter;
-    [self.scrollView addSubview:self.statusLabel];
-    
-    yPos += 40;
-    self.scrollView.contentSize = CGSizeMake(320, yPos + 10);
+    self.scrollView.contentSize = CGSizeMake(300, features.count * 36 + 20);
 }
 
 - (void)speedChanged:(UISlider *)sender {
     LUBVSettings *settings = [LUBVSettings sharedInstance];
     settings.playerSpeed = sender.value;
     settings.fastSpeed = YES;
-    self.speedLabel.text = [NSString stringWithFormat:@"%.1f", sender.value];
+    self.speedLabel.text = [NSString stringWithFormat:@"%.1fx", sender.value];
 }
 
 - (void)switchToggled:(UISwitch *)sender {
@@ -346,11 +222,7 @@
         @"alwaysImpostor", @"noKillCooldown", @"alwaysCanKill",
         @"alwaysCanVent", @"noVentCooldown", @"alwaysCanSabotage",
         @"alwaysCanReport", @"unlimitedVision", @"seeGhosts",
-        @"godMode", @"fastSpeed", @"unlimitedEmergencies",
-        @"noClip", @"noPhantomCooldown", @"noShapeshifterCooldown",
-        @"noEngineerCooldown", @"noDetectiveCooldown",
-        @"noTrackerCooldown", @"noGuardianAngelCooldown",
-        @"unlockAllIAP"
+        @"godMode", @"fastSpeed", @"unlimitedEmergencies", @"noClip"
     ];
     
     NSString *key = keys[sender.tag];
@@ -359,21 +231,7 @@
 
 - (void)toggleMenu {
     self.isMenuOpen = !self.isMenuOpen;
-    
-    if (self.isMenuOpen) {
-        self.menuView.hidden = NO;
-        [UIView animateWithDuration:0.5 delay:0 usingSpringWithDamping:0.8 initialSpringVelocity:0.6 options:0 animations:^{
-            self.menuView.alpha = 1.0;
-            self.menuView.transform = CGAffineTransformMakeScale(1.0, 1.0);
-        } completion:nil];
-    } else {
-        [UIView animateWithDuration:0.3 animations:^{
-            self.menuView.alpha = 0.0;
-            self.menuView.transform = CGAffineTransformMakeScale(0.8, 0.8);
-        } completion:^(BOOL finished) {
-            self.menuView.hidden = YES;
-        }];
-    }
+    self.menuView.hidden = !self.menuView.hidden;
 }
 
 - (void)handlePan:(UIPanGestureRecognizer *)gesture {
@@ -398,10 +256,7 @@ static LUBVGUIButton *guiButton = nil;
 
 __attribute__((constructor)) static void initialize() {
     NSLog(@"========================================");
-    NSLog(@"⚡ LUBV ULTIMATE Loaded!");
-    NSLog(@"========================================");
-    NSLog(@"Drag ⚡ button anywhere");
-    NSLog(@"Tap ⚡ to open control panel");
+    NSLog(@"⚡ LUBV Loaded!");
     NSLog(@"========================================");
     
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -418,25 +273,23 @@ __attribute__((constructor)) static void initialize() {
 }
 
 // ============================================================
-// HOOKS - ALL WORKING FEATURES
+// HOOKS - ONLY CONFIRMED WORKING
 // ============================================================
 
-// Player Speed
 %hook PlayerControl
 
-- (float)GetSpeed {
-    float originalSpeed = %orig;
-    LUBVSettings *settings = [LUBVSettings sharedInstance];
-    if (settings.fastSpeed) {
-        return settings.playerSpeed;
+// Always Impostor
+- (BOOL)IsImpostor {
+    if ([LUBVSettings sharedInstance].alwaysImpostor) {
+        return YES;
     }
-    return originalSpeed;
+    return %orig;
 }
 
-// No Clip
-- (BOOL)CanMove {
-    if ([LUBVSettings sharedInstance].noClip) {
-        return YES;
+// No Kill Cooldown
+- (float)GetKillCooldown {
+    if ([LUBVSettings sharedInstance].noKillCooldown) {
+        return 0.0f;
     }
     return %orig;
 }
@@ -449,18 +302,10 @@ __attribute__((constructor)) static void initialize() {
     %orig;
 }
 
-// No Kill Cooldown
-- (float)GetKillCooldown {
-    if ([LUBVSettings sharedInstance].noKillCooldown) {
-        return 0.0f;
-    }
-    return %orig;
-}
-
-// Always Impostor
-- (BOOL)IsImpostor {
-    if ([LUBVSettings sharedInstance].alwaysImpostor) {
-        return YES;
+// Fast Speed
+- (float)GetSpeed {
+    if ([LUBVSettings sharedInstance].fastSpeed) {
+        return [LUBVSettings sharedInstance].playerSpeed;
     }
     return %orig;
 }
@@ -477,6 +322,14 @@ __attribute__((constructor)) static void initialize() {
 - (BOOL)IsGhost {
     if ([LUBVSettings sharedInstance].seeGhosts) {
         return NO;
+    }
+    return %orig;
+}
+
+// No Clip
+- (BOOL)CanMove {
+    if ([LUBVSettings sharedInstance].noClip) {
+        return YES;
     }
     return %orig;
 }
@@ -550,129 +403,6 @@ __attribute__((constructor)) static void initialize() {
 
 - (BOOL)CanUse {
     if ([LUBVSettings sharedInstance].unlimitedEmergencies) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-// Cooldowns
-%hook PhantomRole
-
-- (float)GetCooldown {
-    if ([LUBVSettings sharedInstance].noPhantomCooldown) {
-        return 0.0f;
-    }
-    return %orig;
-}
-
-%end
-
-%hook ShapeshifterRole
-
-- (float)GetCooldown {
-    if ([LUBVSettings sharedInstance].noShapeshifterCooldown) {
-        return 0.0f;
-    }
-    return %orig;
-}
-
-%end
-
-%hook EngineerRole
-
-- (float)GetCooldown {
-    if ([LUBVSettings sharedInstance].noEngineerCooldown) {
-        return 0.0f;
-    }
-    return %orig;
-}
-
-%end
-
-%hook DetectiveRole
-
-- (float)GetCooldown {
-    if ([LUBVSettings sharedInstance].noDetectiveCooldown) {
-        return 0.0f;
-    }
-    return %orig;
-}
-
-%end
-
-%hook TrackerRole
-
-- (float)GetCooldown {
-    if ([LUBVSettings sharedInstance].noTrackerCooldown) {
-        return 0.0f;
-    }
-    return %orig;
-}
-
-%end
-
-%hook GuardianAngelRole
-
-- (float)GetCooldown {
-    if ([LUBVSettings sharedInstance].noGuardianAngelCooldown) {
-        return 0.0f;
-    }
-    return %orig;
-}
-
-%end
-
-// Unlock All IAP
-%hook HatManager
-
-- (BOOL)IsHatUnlocked:(id)hat {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-%hook PetManager
-
-- (BOOL)IsPetUnlocked:(id)pet {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-%hook SkinManager
-
-- (BOOL)IsSkinUnlocked:(id)skin {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-%hook VisorManager
-
-- (BOOL)IsVisorUnlocked:(id)visor {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-%hook NamePlateManager
-
-- (BOOL)IsNamePlateUnlocked:(id)nameplate {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
         return YES;
     }
     return %orig;
