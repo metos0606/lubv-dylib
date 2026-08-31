@@ -866,12 +866,17 @@ static void init_cheat(void) {
                 window = [[UIApplication sharedApplication].windows firstObject];
             }
             
-        UITapGestureRecognizer *tripleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTripleTap:)];
+        UITapGestureRecognizer *tripleTap = [[UITapGestureRecognizer alloc] init];
         tripleTap.numberOfTapsRequired = 3;
+        
+        // Use a weak reference to avoid capture issues in the block
+        __weak UITapGestureRecognizer *weakTap = tripleTap;
+        [tripleTap addAction:^(UIAction *action) {
+            handleTripleTap(weakTap);
+        }];
+        
         [window addGestureRecognizer:tripleTap];
-            
-            NSLog(@"[AmongUsCheat] Triple-tap gesture added to show settings menu");
-        });
+        NSLog(@"[AmongUsCheat] Triple-tap gesture added to show settings menu");
         
         NSLog(@"[AmongUsCheat] Injection complete!");
         NSLog(@"[AmongUsCheat] Features: AlwaysImpostor=%@, Cosmetics=%@, ESP=%@, AutoWin=%@, AntiBan=%@",
