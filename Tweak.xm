@@ -866,14 +866,28 @@ static void init_cheat(void) {
                 window = [[UIApplication sharedApplication].windows firstObject];
             }
             
-        UITapGestureRecognizer *tripleTap = [[UITapGestureRecognizer alloc] init];
-        tripleTap.numberOfTapsRequired = 3;
-        
-        // Use a weak reference to avoid capture issues in the block
-        __weak UITapGestureRecognizer *weakTap = tripleTap;
-        [tripleTap addAction:^(UIAction *action) {
-            handleTripleTap(weakTap);
-        }];
+        // ============================================================
+        // Add gesture to show settings menu (triple tap on screen)
+        // ============================================================
+        dispatch_async(dispatch_get_main_queue(), ^{
+            UIWindow *window = [UIApplication sharedApplication].keyWindow;
+            if (!window) {
+                window = [[UIApplication sharedApplication].windows firstObject];
+            }
+            
+            UITapGestureRecognizer *tripleTap = [[UITapGestureRecognizer alloc] initWithTarget:nil action:NULL];
+            tripleTap.numberOfTapsRequired = 3;
+            
+            // Create a target wrapper to call the static function
+            [tripleTap addTarget:(id)^(UIGestureRecognizer *recognizer) {
+                handleTripleTap(recognizer);
+            } action:@selector(invoke)];
+            
+            [window addGestureRecognizer:tripleTap];
+            
+            NSLog(@"[AmongUsCheat] Triple-tap gesture added to show settings menu");
+        });
+ 
         
         [window addGestureRecognizer:tripleTap];
         NSLog(@"[AmongUsCheat] Triple-tap gesture added to show settings menu");
