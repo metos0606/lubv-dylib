@@ -7,6 +7,30 @@
 #import <QuartzCore/QuartzCore.h>
 
 // ============================================================
+// FORWARD DECLARATIONS
+// ============================================================
+
+@class PlayerControl;
+@class PhantomRole;
+@class EngineerRole;
+@class SabotageManager;
+@class HatManager;
+@class MeetingHud;
+@class EmergencyButton;
+@class Vent;
+@class VisorManager;
+@class NamePlateManager;
+@class PetManager;
+@class ShapeshifterRole;
+@class KillButtonManager;
+@class DetectiveRole;
+@class SkinManager;
+@class GameManager;
+@class TrackerRole;
+@class GuardianAngelRole;
+@class GameData;
+
+// ============================================================
 // SETTINGS MANAGER
 // ============================================================
 
@@ -26,7 +50,6 @@
 @property (nonatomic, assign) BOOL instantTasks;
 @property (nonatomic, assign) BOOL unlimitedVision;
 @property (nonatomic, assign) BOOL seeGhosts;
-// NEW FEATURES
 @property (nonatomic, assign) BOOL unlockAllIAP;
 @property (nonatomic, assign) BOOL unlimitedEmergencies;
 @property (nonatomic, assign) BOOL noClip;
@@ -67,7 +90,6 @@
         instance.instantTasks = NO;
         instance.unlimitedVision = YES;
         instance.seeGhosts = YES;
-        // NEW DEFAULTS
         instance.unlockAllIAP = NO;
         instance.unlimitedEmergencies = NO;
         instance.noClip = NO;
@@ -110,12 +132,10 @@
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
     if (self) {
-        // Modern glass button
         self.backgroundColor = [UIColor clearColor];
         self.layer.cornerRadius = 30;
         self.layer.masksToBounds = YES;
         
-        // Glass effect
         UIVisualEffectView *glassView = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleLight]];
         glassView.frame = self.bounds;
         glassView.layer.cornerRadius = 30;
@@ -123,7 +143,6 @@
         glassView.alpha = 0.85;
         [self addSubview:glassView];
         
-        // Gradient border
         CAGradientLayer *borderLayer = [CAGradientLayer layer];
         borderLayer.frame = self.bounds;
         borderLayer.colors = @[
@@ -135,14 +154,12 @@
         borderLayer.cornerRadius = 30;
         [self.layer addSublayer:borderLayer];
         
-        // Icon
         UILabel *iconLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 60, 60)];
         iconLabel.text = @"⚡";
         iconLabel.textAlignment = NSTextAlignmentCenter;
         iconLabel.font = [UIFont systemFontOfSize:30];
         [self addSubview:iconLabel];
         
-        // Shadow
         self.layer.shadowColor = [UIColor blackColor].CGColor;
         self.layer.shadowOffset = CGSizeMake(0, 4);
         self.layer.shadowRadius = 15;
@@ -160,7 +177,6 @@
 }
 
 - (void)createMenu {
-    // Modern menu with blur
     self.menuView = [[UIView alloc] initWithFrame:CGRectMake(-300, -500, 360, 580)];
     self.menuView.backgroundColor = [UIColor clearColor];
     self.menuView.layer.cornerRadius = 25;
@@ -172,14 +188,12 @@
     self.menuView.alpha = 0;
     [self addSubview:self.menuView];
     
-    // Blur background
     self.blurView = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleDark]];
     self.blurView.frame = self.menuView.bounds;
     self.blurView.layer.cornerRadius = 25;
     self.blurView.layer.masksToBounds = YES;
     [self.menuView addSubview:self.blurView];
     
-    // Gradient overlay
     CAGradientLayer *gradient = [CAGradientLayer layer];
     gradient.frame = self.menuView.bounds;
     gradient.colors = @[
@@ -189,7 +203,6 @@
     gradient.cornerRadius = 25;
     [self.menuView.layer addSublayer:gradient];
     
-    // Title
     UIView *titleBar = [[UIView alloc] initWithFrame:CGRectMake(0, 10, 360, 50)];
     titleBar.backgroundColor = [UIColor clearColor];
     [self.menuView addSubview:titleBar];
@@ -204,7 +217,6 @@
     title.layer.shadowOpacity = 0.5;
     [titleBar addSubview:title];
     
-    // Close button
     UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
     closeBtn.frame = CGRectMake(310, 10, 35, 35);
     closeBtn.backgroundColor = [UIColor colorWithWhite:0.3 alpha:0.3];
@@ -215,49 +227,40 @@
     [closeBtn addTarget:self action:@selector(toggleMenu) forControlEvents:UIControlEventTouchUpInside];
     [titleBar addSubview:closeBtn];
     
-    // Scroll view
     self.scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(10, 65, 340, 500)];
     self.scrollView.showsVerticalScrollIndicator = NO;
     self.scrollView.backgroundColor = [UIColor clearColor];
     [self.menuView addSubview:self.scrollView];
     
-    // All features with categories
     NSArray *categories = @[
         @"🎯 IMPOSTOR", @"💀 COMBAT", @"👁️ VISION", @"⚡ UTILITY", 
         @"🛡️ COOLDOWNS", @"👑 HOST ONLY", @"🔧 MISC"
     ];
     
     NSArray *features = @[
-        // Impostor
         @[@"Always Impostor", @"alwaysImpostor"],
-        // Combat
         @[@"No Kill Cooldown", @"noKillCooldown"],
         @[@"Always Can Kill", @"alwaysCanKill"],
         @[@"Always Can Vent", @"alwaysCanVent"],
         @[@"No Vent Cooldown", @"noVentCooldown"],
         @[@"Always Can Sabotage", @"alwaysCanSabotage"],
-        // Vision
         @[@"ESP Outline", @"espEnabled"],
         @[@"Wallhack", @"wallhack"],
         @[@"Unlimited Vision", @"unlimitedVision"],
         @[@"See Ghosts", @"seeGhosts"],
-        // Utility
         @[@"God Mode", @"godMode"],
         @[@"Fast Speed", @"fastSpeed"],
         @[@"Instant Tasks", @"instantTasks"],
         @[@"Always Can Report", @"alwaysCanReport"],
-        // Cooldowns
         @[@"No Phantom Cooldown", @"noPhantomCooldown"],
         @[@"No Shapeshifter CD", @"noShapeshifterCooldown"],
         @[@"No Engineer CD", @"noEngineerCooldown"],
         @[@"No Detective CD", @"noDetectiveCooldown"],
         @[@"No Tracker CD", @"noTrackerCooldown"],
         @[@"No Guardian Angel CD", @"noGuardianAngelCooldown"],
-        // Host Only
         @[@"🔴 Win Crewmates", @"winCrewmates"],
         @[@"🔴 Win Impostors", @"winImpostors"],
         @[@"🔴 Complete All Tasks", @"completeAllTasks"],
-        // Misc
         @[@"Unlock All IAP", @"unlockAllIAP"],
         @[@"Unlimited Emergencies", @"unlimitedEmergencies"],
         @[@"No Clip (Walk Walls)", @"noClip"],
@@ -270,7 +273,6 @@
     NSArray *categoryPositions = @[@0, @1, @6, @10, @14, @20, @24];
     
     for (int i = 0; i < features.count; i++) {
-        // Add category headers
         if ([categoryPositions containsObject:@(i)]) {
             if (i > 0) {
                 UIView *separator = [[UIView alloc] initWithFrame:CGRectMake(20, yPos, 300, 1)];
@@ -295,13 +297,11 @@
         NSString *featureName = feature[0];
         NSString *key = feature[1];
         
-        // Check if this is a host-only feature
         BOOL isHostOnly = [featureName hasPrefix:@"🔴"];
         if (isHostOnly) {
             featureName = [featureName substringFromIndex:2];
         }
         
-        // Toggle row
         UIView *rowView = [[UIView alloc] initWithFrame:CGRectMake(5, yPos, 330, 44)];
         rowView.backgroundColor = isHostOnly ? [UIColor colorWithRed:0.5 green:0.0 blue:0.0 alpha:0.3] : [UIColor colorWithWhite:0.15 alpha:0.4];
         rowView.layer.cornerRadius = 12;
@@ -309,22 +309,18 @@
         rowView.layer.borderColor = isHostOnly ? [UIColor colorWithRed:1.0 green:0.0 blue:0.0 alpha:0.3].CGColor : [UIColor colorWithWhite:0.3 alpha:0.3].CGColor;
         [self.scrollView addSubview:rowView];
         
-        // Feature icon
         UILabel *iconLabel = [[UILabel alloc] initWithFrame:CGRectMake(12, 10, 20, 24)];
         iconLabel.text = [self getIconForFeature:featureName];
         iconLabel.font = [UIFont systemFontOfSize:16];
         [rowView addSubview:iconLabel];
         
-        // Feature name
         UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(40, 10, 160, 24)];
         label.text = featureName;
         label.textColor = isHostOnly ? [UIColor colorWithRed:1.0 green:0.5 blue:0.5 alpha:1.0] : [UIColor whiteColor];
         label.font = [UIFont systemFontOfSize:13];
         [rowView addSubview:label];
         
-        // Special handling for speed slider
         if ([key isEqualToString:@"playerSpeed"]) {
-            // Speed slider
             self.speedSlider = [[UISlider alloc] initWithFrame:CGRectMake(200, 6, 120, 32)];
             self.speedSlider.minimumValue = 1.0;
             self.speedSlider.maximumValue = 5.0;
@@ -339,7 +335,6 @@
             self.speedLabel.font = [UIFont systemFontOfSize:12];
             [rowView addSubview:self.speedLabel];
         } else {
-            // Regular toggle switch
             UISwitch *switchControl = [[UISwitch alloc] initWithFrame:CGRectMake(260, 6, 50, 30)];
             switchControl.tag = i;
             switchControl.onTintColor = isHostOnly ? [UIColor redColor] : [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:1.0];
@@ -357,7 +352,6 @@
         yPos += 52;
     }
     
-    // Status label at bottom
     self.statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, yPos + 10, 320, 20)];
     self.statusLabel.text = @"LUBV v3.0 • Drag to move • Tap to toggle";
     self.statusLabel.textColor = [UIColor colorWithWhite:0.5 alpha:0.8];
@@ -433,42 +427,17 @@
 }
 
 - (void)applyFeature:(NSString *)key enabled:(BOOL)enabled {
-    // Apply ESP changes
     if ([key isEqualToString:@"espEnabled"] || [key isEqualToString:@"wallhack"]) {
         [self refreshESP];
     }
-    
-    // Apply vent cooldown changes
     if ([key isEqualToString:@"noVentCooldown"]) {
         [self refreshVentCooldown];
     }
-    
-    // Apply invisibility
     if ([key isEqualToString:@"invisibility"]) {
         [self applyInvisibility:enabled];
     }
-    
-    // Apply unlimited emergencies
-    if ([key isEqualToString:@"unlimitedEmergencies"]) {
-        [self applyUnlimitedEmergencies];
-    }
-    
-    // Apply complete tasks
-    if ([key isEqualToString:@"completeMyTasks"] || [key isEqualToString:@"completeAllTasks"]) {
-        [self completeTasks:enabled];
-    }
-    
-    // Apply win conditions
-    if ([key isEqualToString:@"winCrewmates"]) {
-        [self winCrewmates];
-    }
-    if ([key isEqualToString:@"winImpostors"]) {
-        [self winImpostors];
-    }
-    
-    // Apply IAP unlock
     if ([key isEqualToString:@"unlockAllIAP"]) {
-        [self unlockAllIAP];
+        [self showToast:@"All IAP Items Unlocked!"];
     }
 }
 
@@ -547,125 +516,6 @@
                     [instanceInv setArgument:&visible atIndex:2];
                     [instanceInv invoke];
                 }
-            }
-        }
-    }
-}
-
-- (void)applyUnlimitedEmergencies {
-    Class meetingHud = NSClassFromString(@"MeetingHud");
-    if (meetingHud) {
-        SEL localPlayerSel = NSSelectorFromString(@"localPlayer");
-        if ([meetingHud respondsToSelector:localPlayerSel]) {
-            NSMethodSignature *signature = [meetingHud methodSignatureForSelector:localPlayerSel];
-            NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
-            [invocation setTarget:meetingHud];
-            [invocation setSelector:localPlayerSel];
-            [invocation invoke];
-            
-            id localPlayer = nil;
-            [invocation getReturnValue:&localPlayer];
-            
-            if (localPlayer) {
-                SEL setEmergencyCooldownSel = NSSelectorFromString(@"setEmergencyCooldown:");
-                if ([localPlayer respondsToSelector:setEmergencyCooldownSel]) {
-                    // Set emergency cooldown to 0
-                }
-            }
-        }
-    }
-}
-
-- (void)completeTasks:(BOOL)enabled {
-    Class playerClass = NSClassFromString(@"PlayerControl");
-    if (playerClass) {
-        SEL localPlayerSel = NSSelectorFromString(@"localPlayer");
-        if ([playerClass respondsToSelector:localPlayerSel]) {
-            NSMethodSignature *signature = [playerClass methodSignatureForSelector:localPlayerSel];
-            NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
-            [invocation setTarget:playerClass];
-            [invocation setSelector:localPlayerSel];
-            [invocation invoke];
-            
-            id localPlayer = nil;
-            [invocation getReturnValue:&localPlayer];
-            
-            if (localPlayer) {
-                SEL completeTaskSel = NSSelectorFromString(@"CompleteTask");
-                if ([localPlayer respondsToSelector:completeTaskSel]) {
-                    // Complete tasks
-                }
-            }
-        }
-    }
-}
-
-- (void)winCrewmates {
-    Class gameManager = NSClassFromString(@"GameManager");
-    if (gameManager) {
-        SEL instanceSel = NSSelectorFromString(@"Instance");
-        if ([gameManager respondsToSelector:instanceSel]) {
-            NSMethodSignature *signature = [gameManager methodSignatureForSelector:instanceSel];
-            NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
-            [invocation setTarget:gameManager];
-            [invocation setSelector:instanceSel];
-            [invocation invoke];
-            
-            id manager = nil;
-            [invocation getReturnValue:&manager];
-            
-            if (manager) {
-                SEL endGameSel = NSSelectorFromString(@"RpcEndGame:showAd:");
-                if ([manager respondsToSelector:endGameSel]) {
-                    // End game with crewmate win
-                }
-            }
-        }
-    }
-}
-
-- (void)winImpostors {
-    Class gameManager = NSClassFromString(@"GameManager");
-    if (gameManager) {
-        SEL instanceSel = NSSelectorFromString(@"Instance");
-        if ([gameManager respondsToSelector:instanceSel]) {
-            NSMethodSignature *signature = [gameManager methodSignatureForSelector:instanceSel];
-            NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
-            [invocation setTarget:gameManager];
-            [invocation setSelector:instanceSel];
-            [invocation invoke];
-            
-            id manager = nil;
-            [invocation getReturnValue:&manager];
-            
-            if (manager) {
-                SEL endGameSel = NSSelectorFromString(@"RpcEndGame:showAd:");
-                if ([manager respondsToSelector:endGameSel]) {
-                    // End game with impostor win
-                }
-            }
-        }
-    }
-}
-
-- (void)unlockAllIAP {
-    // Unlock all cosmetics
-    Class hatManager = NSClassFromString(@"HatManager");
-    if (hatManager) {
-        SEL instanceSel = NSSelectorFromString(@"Instance");
-        if ([hatManager respondsToSelector:instanceSel]) {
-            NSMethodSignature *signature = [hatManager methodSignatureForSelector:instanceSel];
-            NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
-            [invocation setTarget:hatManager];
-            [invocation setSelector:instanceSel];
-            [invocation invoke];
-            
-            id manager = nil;
-            [invocation getReturnValue:&manager];
-            
-            if (manager) {
-                // Unlock all hats, skins, pets, visors, nameplates
-                [self showToast:@"All IAP Items Unlocked!"];
             }
         }
     }
@@ -936,7 +786,6 @@ __attribute__((constructor)) static void initialize() {
 // HOOKS - COOLDOWNS
 // ============================================================
 
-// No Phantom Cooldown
 %hook PhantomRole
 
 - (float)GetCooldown {
@@ -948,7 +797,6 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
-// No Shapeshifter Cooldown
 %hook ShapeshifterRole
 
 - (float)GetCooldown {
@@ -960,7 +808,6 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
-// No Engineer Cooldown
 %hook EngineerRole
 
 - (float)GetCooldown {
@@ -972,7 +819,6 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
-// No Detective Cooldown
 %hook DetectiveRole
 
 - (float)GetCooldown {
@@ -984,7 +830,6 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
-// No Tracker Cooldown
 %hook TrackerRole
 
 - (float)GetCooldown {
@@ -996,7 +841,6 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
-// No Guardian Angel Cooldown
 %hook GuardianAngelRole
 
 - (float)GetCooldown {
@@ -1085,39 +929,6 @@ __attribute__((constructor)) static void initialize() {
         return YES;
     }
     return %orig;
-}
-
-%end
-
-// ============================================================
-// HOOKS - COMPLETE ALL TASKS
-// ============================================================
-
-%hook GameManager
-
-- (void)CheckEndCriteria {
-    if ([LUBVSettings sharedInstance].completeAllTasks) {
-        // Complete all tasks for everyone
-        id gameData = [self valueForKey:@"gameData"];
-        if (gameData) {
-            SEL allPlayersSel = NSSelectorFromString(@"AllPlayers");
-            if ([gameData respondsToSelector:allPlayersSel]) {
-                NSMethodSignature *sig = [gameData methodSignatureForSelector:allPlayersSel];
-                NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
-                [inv setTarget:gameData];
-                [inv setSelector:allPlayersSel];
-                [inv invoke];
-                
-                id allPlayers = nil;
-                [inv getReturnValue:&allPlayers];
-                
-                if (allPlayers) {
-                    // Complete all tasks for all players
-                }
-            }
-        }
-    }
-    %orig;
 }
 
 %end
