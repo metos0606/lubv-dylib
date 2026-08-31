@@ -1,5 +1,5 @@
-// LUBV Ultimate - Stable Edition
-// All features with proper error handling
+// LUBV Ultimate - Stable Final Edition
+// Only safe, working features
 
 #import <substrate.h>
 #import <UIKit/UIKit.h>
@@ -11,25 +11,22 @@
 // ============================================================
 
 @class PlayerControl;
-@class PhantomRole;
-@class EngineerRole;
-@class SabotageManager;
-@class HatManager;
-@class MeetingHud;
-@class EmergencyButton;
 @class Vent;
-@class VisorManager;
-@class NamePlateManager;
-@class PetManager;
-@class ShapeshifterRole;
+@class SabotageManager;
 @class KillButtonManager;
+@class EmergencyButton;
+@class MeetingHud;
+@class PhantomRole;
+@class ShapeshifterRole;
+@class EngineerRole;
 @class DetectiveRole;
-@class SkinManager;
-@class GameManager;
 @class TrackerRole;
 @class GuardianAngelRole;
-@class GameData;
-@class PlayerTask;
+@class HatManager;
+@class PetManager;
+@class SkinManager;
+@class VisorManager;
+@class NamePlateManager;
 
 // ============================================================
 // SETTINGS MANAGER
@@ -42,19 +39,14 @@
 @property (nonatomic, assign) BOOL alwaysCanVent;
 @property (nonatomic, assign) BOOL alwaysCanSabotage;
 @property (nonatomic, assign) BOOL alwaysCanReport;
-@property (nonatomic, assign) BOOL espEnabled;
 @property (nonatomic, assign) BOOL godMode;
 @property (nonatomic, assign) BOOL noVentCooldown;
 @property (nonatomic, assign) BOOL fastSpeed;
-@property (nonatomic, assign) BOOL showGUI;
-@property (nonatomic, assign) BOOL wallhack;
-@property (nonatomic, assign) BOOL instantTasks;
 @property (nonatomic, assign) BOOL unlimitedVision;
 @property (nonatomic, assign) BOOL seeGhosts;
 @property (nonatomic, assign) BOOL unlockAllIAP;
 @property (nonatomic, assign) BOOL unlimitedEmergencies;
 @property (nonatomic, assign) BOOL noClip;
-@property (nonatomic, assign) BOOL completeMyTasks;
 @property (nonatomic, assign) float playerSpeed;
 @property (nonatomic, assign) BOOL noPhantomCooldown;
 @property (nonatomic, assign) BOOL noShapeshifterCooldown;
@@ -62,10 +54,6 @@
 @property (nonatomic, assign) BOOL noDetectiveCooldown;
 @property (nonatomic, assign) BOOL noTrackerCooldown;
 @property (nonatomic, assign) BOOL noGuardianAngelCooldown;
-@property (nonatomic, assign) BOOL winCrewmates;
-@property (nonatomic, assign) BOOL winImpostors;
-@property (nonatomic, assign) BOOL completeAllTasks;
-@property (nonatomic, assign) BOOL invisibility;
 + (instancetype)sharedInstance;
 @end
 
@@ -82,19 +70,14 @@
         instance.alwaysCanVent = YES;
         instance.alwaysCanSabotage = YES;
         instance.alwaysCanReport = YES;
-        instance.espEnabled = YES;
         instance.godMode = NO;
         instance.noVentCooldown = YES;
         instance.fastSpeed = NO;
-        instance.showGUI = YES;
-        instance.wallhack = YES;
-        instance.instantTasks = NO;
         instance.unlimitedVision = YES;
         instance.seeGhosts = YES;
         instance.unlockAllIAP = NO;
         instance.unlimitedEmergencies = NO;
         instance.noClip = NO;
-        instance.completeMyTasks = NO;
         instance.playerSpeed = 1.5;
         instance.noPhantomCooldown = NO;
         instance.noShapeshifterCooldown = NO;
@@ -102,80 +85,11 @@
         instance.noDetectiveCooldown = NO;
         instance.noTrackerCooldown = NO;
         instance.noGuardianAngelCooldown = NO;
-        instance.winCrewmates = NO;
-        instance.winImpostors = NO;
-        instance.completeAllTasks = NO;
-        instance.invisibility = NO;
     });
     return instance;
 }
 
 @end
-
-// ============================================================
-// SAFE HELPER FUNCTIONS
-// ============================================================
-
-static id GetLocalPlayer(void) {
-    Class playerClass = NSClassFromString(@"PlayerControl");
-    if (!playerClass) return nil;
-    
-    SEL sel = NSSelectorFromString(@"localPlayer");
-    if (![playerClass respondsToSelector:sel]) return nil;
-    
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-    return [playerClass performSelector:sel];
-    #pragma clang diagnostic pop
-}
-
-static BOOL SafeBoolValue(id object, NSString *selectorName) {
-    if (!object) return NO;
-    SEL sel = NSSelectorFromString(selectorName);
-    if (![object respondsToSelector:sel]) return NO;
-    
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-    return (BOOL)[object performSelector:sel];
-    #pragma clang diagnostic pop
-}
-
-static void SafeVoidCall(id object, NSString *selectorName) {
-    if (!object) return;
-    SEL sel = NSSelectorFromString(selectorName);
-    if (![object respondsToSelector:sel]) return;
-    
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-    [object performSelector:sel];
-    #pragma clang diagnostic pop
-}
-
-static void SafeVoidCallWithArg(id object, NSString *selectorName, id arg) {
-    if (!object) return;
-    SEL sel = NSSelectorFromString(selectorName);
-    if (![object respondsToSelector:sel]) return;
-    
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-    [object performSelector:sel withObject:arg];
-    #pragma clang diagnostic pop
-}
-
-static void SafeVoidCallWithBool(id object, NSString *selectorName, BOOL value) {
-    if (!object) return;
-    SEL sel = NSSelectorFromString(selectorName);
-    if (![object respondsToSelector:sel]) return;
-    
-    NSMethodSignature *sig = [object methodSignatureForSelector:sel];
-    if (!sig) return;
-    
-    NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
-    [inv setTarget:object];
-    [inv setSelector:sel];
-    [inv setArgument:&value atIndex:2];
-    [inv invoke];
-}
 
 // ============================================================
 // BEAUTIFUL GUI BUTTON
@@ -243,7 +157,7 @@ static void SafeVoidCallWithBool(id object, NSString *selectorName, BOOL value) 
 }
 
 - (void)createMenu {
-    self.menuView = [[UIView alloc] initWithFrame:CGRectMake(-300, -500, 360, 580)];
+    self.menuView = [[UIView alloc] initWithFrame:CGRectMake(-280, -450, 340, 520)];
     self.menuView.backgroundColor = [UIColor clearColor];
     self.menuView.layer.cornerRadius = 25;
     self.menuView.layer.shadowColor = [UIColor blackColor].CGColor;
@@ -269,14 +183,14 @@ static void SafeVoidCallWithBool(id object, NSString *selectorName, BOOL value) 
     gradient.cornerRadius = 25;
     [self.menuView.layer addSublayer:gradient];
     
-    UIView *titleBar = [[UIView alloc] initWithFrame:CGRectMake(0, 10, 360, 50)];
+    UIView *titleBar = [[UIView alloc] initWithFrame:CGRectMake(0, 10, 340, 50)];
     titleBar.backgroundColor = [UIColor clearColor];
     [self.menuView addSubview:titleBar];
     
-    UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(60, 0, 240, 40)];
-    title.text = @"✦ LUBV ULTIMATE ✦";
+    UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(50, 0, 240, 40)];
+    title.text = @"✦ LUBV CONTROLS ✦";
     title.textColor = [UIColor whiteColor];
-    title.font = [UIFont boldSystemFontOfSize:22];
+    title.font = [UIFont boldSystemFontOfSize:20];
     title.textAlignment = NSTextAlignmentCenter;
     title.layer.shadowColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:0.5].CGColor;
     title.layer.shadowRadius = 10;
@@ -284,7 +198,7 @@ static void SafeVoidCallWithBool(id object, NSString *selectorName, BOOL value) 
     [titleBar addSubview:title];
     
     UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-    closeBtn.frame = CGRectMake(310, 10, 35, 35);
+    closeBtn.frame = CGRectMake(290, 10, 35, 35);
     closeBtn.backgroundColor = [UIColor colorWithWhite:0.3 alpha:0.3];
     closeBtn.layer.cornerRadius = 17.5;
     [closeBtn setTitle:@"✕" forState:UIControlStateNormal];
@@ -293,151 +207,45 @@ static void SafeVoidCallWithBool(id object, NSString *selectorName, BOOL value) 
     [closeBtn addTarget:self action:@selector(toggleMenu) forControlEvents:UIControlEventTouchUpInside];
     [titleBar addSubview:closeBtn];
     
-    self.scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(10, 65, 340, 500)];
+    self.scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(10, 65, 320, 440)];
     self.scrollView.showsVerticalScrollIndicator = NO;
     self.scrollView.backgroundColor = [UIColor clearColor];
     [self.menuView addSubview:self.scrollView];
     
-    NSArray *categories = @[
-        @"🎯 IMPOSTOR", @"💀 COMBAT", @"👁️ VISION", @"⚡ UTILITY", 
-        @"🛡️ COOLDOWNS", @"👑 HOST ONLY", @"🔧 MISC"
-    ];
-    
     NSArray *features = @[
-        @[@"Always Impostor", @"alwaysImpostor"],
-        @[@"No Kill Cooldown", @"noKillCooldown"],
-        @[@"Always Can Kill", @"alwaysCanKill"],
-        @[@"Always Can Vent", @"alwaysCanVent"],
-        @[@"No Vent Cooldown", @"noVentCooldown"],
-        @[@"Always Can Sabotage", @"alwaysCanSabotage"],
-        @[@"ESP Outline", @"espEnabled"],
-        @[@"Wallhack", @"wallhack"],
-        @[@"Unlimited Vision", @"unlimitedVision"],
-        @[@"See Ghosts", @"seeGhosts"],
-        @[@"God Mode", @"godMode"],
-        @[@"Fast Speed", @"fastSpeed"],
-        @[@"Instant Tasks", @"instantTasks"],
-        @[@"Always Can Report", @"alwaysCanReport"],
-        @[@"No Phantom Cooldown", @"noPhantomCooldown"],
-        @[@"No Shapeshifter CD", @"noShapeshifterCooldown"],
-        @[@"No Engineer CD", @"noEngineerCooldown"],
-        @[@"No Detective CD", @"noDetectiveCooldown"],
-        @[@"No Tracker CD", @"noTrackerCooldown"],
-        @[@"No Guardian Angel CD", @"noGuardianAngelCooldown"],
-        @[@"🔴 Win Crewmates", @"winCrewmates"],
-        @[@"🔴 Win Impostors", @"winImpostors"],
-        @[@"🔴 Complete All Tasks", @"completeAllTasks"],
-        @[@"Unlock All IAP", @"unlockAllIAP"],
-        @[@"Unlimited Emergencies", @"unlimitedEmergencies"],
-        @[@"No Clip (Walk Walls)", @"noClip"],
-        @[@"Complete My Tasks", @"completeMyTasks"],
-        @[@"Invisibility", @"invisibility"]
+        @"Always Impostor",
+        @"No Kill Cooldown",
+        @"Always Can Kill",
+        @"Always Can Vent",
+        @"No Vent Cooldown",
+        @"Always Can Sabotage",
+        @"Always Can Report",
+        @"Unlimited Vision",
+        @"See Ghosts",
+        @"God Mode",
+        @"Fast Speed",
+        @"Unlimited Emergencies",
+        @"No Clip (Walk Walls)",
+        @"No Phantom Cooldown",
+        @"No Shapeshifter Cooldown",
+        @"No Engineer Cooldown",
+        @"No Detective Cooldown",
+        @"No Tracker Cooldown",
+        @"No Guardian Angel Cooldown",
+        @"Unlock All IAP"
     ];
     
-    int yPos = 0;
-    int categoryIndex = 0;
-    NSArray *categoryPositions = @[@0, @1, @6, @10, @14, @20, @24];
+    NSArray *keys = @[
+        @"alwaysImpostor", @"noKillCooldown", @"alwaysCanKill",
+        @"alwaysCanVent", @"noVentCooldown", @"alwaysCanSabotage",
+        @"alwaysCanReport", @"unlimitedVision", @"seeGhosts",
+        @"godMode", @"fastSpeed", @"unlimitedEmergencies",
+        @"noClip", @"noPhantomCooldown", @"noShapeshifterCooldown",
+        @"noEngineerCooldown", @"noDetectiveCooldown",
+        @"noTrackerCooldown", @"noGuardianAngelCooldown",
+        @"unlockAllIAP"
+    ];
     
-    for (int i = 0; i < features.count; i++) {
-        if ([categoryPositions containsObject:@(i)]) {
-            if (i > 0) {
-                UIView *separator = [[UIView alloc] initWithFrame:CGRectMake(20, yPos, 300, 1)];
-                separator.backgroundColor = [UIColor colorWithWhite:0.3 alpha:0.3];
-                [self.scrollView addSubview:separator];
-                yPos += 15;
-            }
-            
-            UILabel *categoryLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, yPos, 300, 25)];
-            categoryLabel.text = categories[categoryIndex];
-            categoryLabel.textColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:0.8];
-            categoryLabel.font = [UIFont boldSystemFontOfSize:13];
-            categoryLabel.textAlignment = NSTextAlignmentCenter;
-            categoryLabel.layer.cornerRadius = 5;
-            categoryLabel.backgroundColor = [UIColor colorWithWhite:0.2 alpha:0.3];
-            [self.scrollView addSubview:categoryLabel];
-            yPos += 30;
-            categoryIndex++;
-        }
-        
-        NSArray *feature = features[i];
-        NSString *featureName = feature[0];
-        NSString *key = feature[1];
-        
-        BOOL isHostOnly = [featureName hasPrefix:@"🔴"];
-        if (isHostOnly) {
-            featureName = [featureName substringFromIndex:2];
-        }
-        
-        UIView *rowView = [[UIView alloc] initWithFrame:CGRectMake(5, yPos, 330, 44)];
-        rowView.backgroundColor = isHostOnly ? [UIColor colorWithRed:0.5 green:0.0 blue:0.0 alpha:0.3] : [UIColor colorWithWhite:0.15 alpha:0.4];
-        rowView.layer.cornerRadius = 12;
-        rowView.layer.borderWidth = 0.5;
-        rowView.layer.borderColor = isHostOnly ? [UIColor colorWithRed:1.0 green:0.0 blue:0.0 alpha:0.3].CGColor : [UIColor colorWithWhite:0.3 alpha:0.3].CGColor;
-        [self.scrollView addSubview:rowView];
-        
-        UILabel *iconLabel = [[UILabel alloc] initWithFrame:CGRectMake(12, 10, 20, 24)];
-        iconLabel.text = [self getIconForFeature:featureName];
-        iconLabel.font = [UIFont systemFontOfSize:16];
-        [rowView addSubview:iconLabel];
-        
-        UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(40, 10, 160, 24)];
-        label.text = featureName;
-        label.textColor = isHostOnly ? [UIColor colorWithRed:1.0 green:0.5 blue:0.5 alpha:1.0] : [UIColor whiteColor];
-        label.font = [UIFont systemFontOfSize:13];
-        [rowView addSubview:label];
-        
-        if ([key isEqualToString:@"playerSpeed"]) {
-            self.speedSlider = [[UISlider alloc] initWithFrame:CGRectMake(200, 6, 120, 32)];
-            self.speedSlider.minimumValue = 1.0;
-            self.speedSlider.maximumValue = 5.0;
-            self.speedSlider.value = [LUBVSettings sharedInstance].playerSpeed;
-            self.speedSlider.tintColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:1.0];
-            [self.speedSlider addTarget:self action:@selector(speedChanged:) forControlEvents:UIControlEventValueChanged];
-            [rowView addSubview:self.speedSlider];
-            
-            self.speedLabel = [[UILabel alloc] initWithFrame:CGRectMake(290, 10, 30, 24)];
-            self.speedLabel.text = [NSString stringWithFormat:@"%.1f", self.speedSlider.value];
-            self.speedLabel.textColor = [UIColor whiteColor];
-            self.speedLabel.font = [UIFont systemFontOfSize:12];
-            [rowView addSubview:self.speedLabel];
-        } else {
-            UISwitch *switchControl = [[UISwitch alloc] initWithFrame:CGRectMake(260, 6, 50, 30)];
-            switchControl.tag = i;
-            switchControl.onTintColor = isHostOnly ? [UIColor redColor] : [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:1.0];
-            switchControl.tintColor = [UIColor colorWithWhite:0.3 alpha:0.5];
-            [switchControl addTarget:self action:@selector(switchToggled:) forControlEvents:UIControlEventValueChanged];
-            
-            LUBVSettings *settings = [LUBVSettings sharedInstance];
-            BOOL isOn = [[settings valueForKey:key] boolValue];
-            switchControl.on = isOn;
-            
-            [rowView addSubview:switchControl];
-            [self.switches setObject:switchControl forKey:key];
-        }
-        
-        yPos += 52;
-    }
-    
-    self.statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, yPos + 10, 320, 20)];
-    self.statusLabel.text = @"LUBV v3.0 • Drag to move • Tap to toggle";
-    self.statusLabel.textColor = [UIColor colorWithWhite:0.5 alpha:0.8];
-    self.statusLabel.font = [UIFont systemFontOfSize:10];
-    self.statusLabel.textAlignment = NSTextAlignmentCenter;
-    [self.scrollView addSubview:self.statusLabel];
-    
-    yPos += 40;
-    self.scrollView.contentSize = CGSizeMake(340, yPos + 10);
-}
-
-- (void)speedChanged:(UISlider *)sender {
-    LUBVSettings *settings = [LUBVSettings sharedInstance];
-    settings.playerSpeed = sender.value;
-    settings.fastSpeed = YES;
-    self.speedLabel.text = [NSString stringWithFormat:@"%.1f", sender.value];
-    [self showToast:[NSString stringWithFormat:@"Speed: %.1fx", sender.value]];
-}
-
-- (NSString *)getIconForFeature:(NSString *)feature {
     NSDictionary *icons = @{
         @"Always Impostor": @"🎭",
         @"No Kill Cooldown": @"⏱️",
@@ -446,29 +254,90 @@ static void SafeVoidCallWithBool(id object, NSString *selectorName, BOOL value) 
         @"No Vent Cooldown": @"🌀",
         @"Always Can Sabotage": @"⚡",
         @"Always Can Report": @"📢",
-        @"ESP Outline": @"👁️",
-        @"Wallhack": @"🧱",
         @"Unlimited Vision": @"🔭",
         @"See Ghosts": @"👻",
         @"God Mode": @"🛡️",
         @"Fast Speed": @"🏃",
-        @"Instant Tasks": @"⚡",
-        @"Unlock All IAP": @"🎁",
         @"Unlimited Emergencies": @"📞",
         @"No Clip (Walk Walls)": @"🚶",
-        @"Complete My Tasks": @"✅",
-        @"Win Crewmates": @"👑",
-        @"Win Impostors": @"👑",
-        @"Complete All Tasks": @"🏆",
-        @"Invisibility": @"👻",
         @"No Phantom Cooldown": @"👻",
-        @"No Shapeshifter CD": @"🔄",
-        @"No Engineer CD": @"🔧",
-        @"No Detective CD": @"🔍",
-        @"No Tracker CD": @"📍",
-        @"No Guardian Angel CD": @"😇"
+        @"No Shapeshifter Cooldown": @"🔄",
+        @"No Engineer Cooldown": @"🔧",
+        @"No Detective Cooldown": @"🔍",
+        @"No Tracker Cooldown": @"📍",
+        @"No Guardian Angel Cooldown": @"😇",
+        @"Unlock All IAP": @"🎁"
     };
-    return icons[feature] ?: @"•";
+    
+    int yPos = 0;
+    
+    for (int i = 0; i < features.count; i++) {
+        UIView *rowView = [[UIView alloc] initWithFrame:CGRectMake(5, yPos, 310, 44)];
+        rowView.backgroundColor = [UIColor colorWithWhite:0.15 alpha:0.4];
+        rowView.layer.cornerRadius = 12;
+        rowView.layer.borderWidth = 0.5;
+        rowView.layer.borderColor = [UIColor colorWithWhite:0.3 alpha:0.3].CGColor;
+        [self.scrollView addSubview:rowView];
+        
+        UILabel *iconLabel = [[UILabel alloc] initWithFrame:CGRectMake(10, 10, 24, 24)];
+        iconLabel.text = icons[features[i]] ?: @"•";
+        iconLabel.font = [UIFont systemFontOfSize:16];
+        [rowView addSubview:iconLabel];
+        
+        UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(40, 10, 160, 24)];
+        label.text = features[i];
+        label.textColor = [UIColor whiteColor];
+        label.font = [UIFont systemFontOfSize:13];
+        [rowView addSubview:label];
+        
+        if ([keys[i] isEqualToString:@"fastSpeed"]) {
+            self.speedSlider = [[UISlider alloc] initWithFrame:CGRectMake(200, 6, 100, 32)];
+            self.speedSlider.minimumValue = 1.0;
+            self.speedSlider.maximumValue = 5.0;
+            self.speedSlider.value = [LUBVSettings sharedInstance].playerSpeed;
+            self.speedSlider.tintColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:1.0];
+            [self.speedSlider addTarget:self action:@selector(speedChanged:) forControlEvents:UIControlEventValueChanged];
+            [rowView addSubview:self.speedSlider];
+            
+            self.speedLabel = [[UILabel alloc] initWithFrame:CGRectMake(280, 10, 25, 24)];
+            self.speedLabel.text = [NSString stringWithFormat:@"%.1f", self.speedSlider.value];
+            self.speedLabel.textColor = [UIColor whiteColor];
+            self.speedLabel.font = [UIFont systemFontOfSize:12];
+            [rowView addSubview:self.speedLabel];
+        } else {
+            UISwitch *switchControl = [[UISwitch alloc] initWithFrame:CGRectMake(240, 6, 50, 30)];
+            switchControl.tag = i;
+            switchControl.onTintColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:1.0];
+            switchControl.tintColor = [UIColor colorWithWhite:0.3 alpha:0.5];
+            [switchControl addTarget:self action:@selector(switchToggled:) forControlEvents:UIControlEventValueChanged];
+            
+            LUBVSettings *settings = [LUBVSettings sharedInstance];
+            BOOL isOn = [[settings valueForKey:keys[i]] boolValue];
+            switchControl.on = isOn;
+            
+            [rowView addSubview:switchControl];
+            [self.switches setObject:switchControl forKey:keys[i]];
+        }
+        
+        yPos += 52;
+    }
+    
+    self.statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(10, yPos + 10, 300, 20)];
+    self.statusLabel.text = @"⚡ Drag to move • Tap to toggle";
+    self.statusLabel.textColor = [UIColor colorWithWhite:0.5 alpha:0.8];
+    self.statusLabel.font = [UIFont systemFontOfSize:10];
+    self.statusLabel.textAlignment = NSTextAlignmentCenter;
+    [self.scrollView addSubview:self.statusLabel];
+    
+    yPos += 40;
+    self.scrollView.contentSize = CGSizeMake(320, yPos + 10);
+}
+
+- (void)speedChanged:(UISlider *)sender {
+    LUBVSettings *settings = [LUBVSettings sharedInstance];
+    settings.playerSpeed = sender.value;
+    settings.fastSpeed = YES;
+    self.speedLabel.text = [NSString stringWithFormat:@"%.1f", sender.value];
 }
 
 - (void)switchToggled:(UISwitch *)sender {
@@ -476,60 +345,16 @@ static void SafeVoidCallWithBool(id object, NSString *selectorName, BOOL value) 
     NSArray *keys = @[
         @"alwaysImpostor", @"noKillCooldown", @"alwaysCanKill",
         @"alwaysCanVent", @"noVentCooldown", @"alwaysCanSabotage",
-        @"alwaysCanReport", @"espEnabled", @"wallhack",
-        @"unlimitedVision", @"seeGhosts", @"godMode",
-        @"fastSpeed", @"instantTasks",
-        @"noPhantomCooldown", @"noShapeshifterCooldown",
+        @"alwaysCanReport", @"unlimitedVision", @"seeGhosts",
+        @"godMode", @"fastSpeed", @"unlimitedEmergencies",
+        @"noClip", @"noPhantomCooldown", @"noShapeshifterCooldown",
         @"noEngineerCooldown", @"noDetectiveCooldown",
         @"noTrackerCooldown", @"noGuardianAngelCooldown",
-        @"winCrewmates", @"winImpostors", @"completeAllTasks",
-        @"unlockAllIAP", @"unlimitedEmergencies", @"noClip",
-        @"completeMyTasks", @"invisibility"
+        @"unlockAllIAP"
     ];
     
     NSString *key = keys[sender.tag];
     [settings setValue:@(sender.on) forKey:key];
-    [self showToast:[NSString stringWithFormat:@"%@ %@", key, sender.on ? @"✓ ON" : @"✕ OFF"]];
-}
-
-- (void)showToast:(NSString *)message {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
-        if (!keyWindow) {
-            keyWindow = [UIApplication sharedApplication].windows.firstObject;
-        }
-        
-        UIView *toastView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 220, 40)];
-        toastView.center = CGPointMake(keyWindow.bounds.size.width / 2, 100);
-        toastView.backgroundColor = [UIColor colorWithWhite:0.1 alpha:0.9];
-        toastView.layer.cornerRadius = 20;
-        toastView.layer.shadowColor = [UIColor blackColor].CGColor;
-        toastView.layer.shadowOffset = CGSizeMake(0, 4);
-        toastView.layer.shadowRadius = 12;
-        toastView.layer.shadowOpacity = 0.5;
-        toastView.alpha = 0;
-        [keyWindow addSubview:toastView];
-        
-        UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(10, 0, 200, 40)];
-        label.text = message;
-        label.textColor = [UIColor whiteColor];
-        label.font = [UIFont systemFontOfSize:13];
-        label.textAlignment = NSTextAlignmentCenter;
-        label.numberOfLines = 2;
-        [toastView addSubview:label];
-        
-        [UIView animateWithDuration:0.3 animations:^{
-            toastView.alpha = 1;
-        } completion:^(BOOL finished) {
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 1.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-                [UIView animateWithDuration:0.3 animations:^{
-                    toastView.alpha = 0;
-                } completion:^(BOOL finished) {
-                    [toastView removeFromSuperview];
-                }];
-            });
-        }];
-    });
 }
 
 - (void)toggleMenu {
@@ -573,7 +398,7 @@ static LUBVGUIButton *guiButton = nil;
 
 __attribute__((constructor)) static void initialize() {
     NSLog(@"========================================");
-    NSLog(@"⚡ LUBV ULTIMATE v3.0 Loaded!");
+    NSLog(@"⚡ LUBV ULTIMATE Loaded!");
     NSLog(@"========================================");
     NSLog(@"Drag ⚡ button anywhere");
     NSLog(@"Tap ⚡ to open control panel");
@@ -593,10 +418,10 @@ __attribute__((constructor)) static void initialize() {
 }
 
 // ============================================================
-// SAFE HOOKS - Only hook methods that definitely exist
+// HOOKS - ALL WORKING FEATURES
 // ============================================================
 
-// Player Speed Hook - Safe
+// Player Speed
 %hook PlayerControl
 
 - (float)GetSpeed {
@@ -608,7 +433,7 @@ __attribute__((constructor)) static void initialize() {
     return originalSpeed;
 }
 
-// No Clip - Safe version
+// No Clip
 - (BOOL)CanMove {
     if ([LUBVSettings sharedInstance].noClip) {
         return YES;
@@ -616,7 +441,7 @@ __attribute__((constructor)) static void initialize() {
     return %orig;
 }
 
-// God Mode - Safe
+// God Mode
 - (void)SetKilled:(id)player {
     if ([LUBVSettings sharedInstance].godMode) {
         return;
@@ -624,7 +449,7 @@ __attribute__((constructor)) static void initialize() {
     %orig;
 }
 
-// No Kill Cooldown - Safe
+// No Kill Cooldown
 - (float)GetKillCooldown {
     if ([LUBVSettings sharedInstance].noKillCooldown) {
         return 0.0f;
@@ -632,7 +457,7 @@ __attribute__((constructor)) static void initialize() {
     return %orig;
 }
 
-// Always Impostor - Safe
+// Always Impostor
 - (BOOL)IsImpostor {
     if ([LUBVSettings sharedInstance].alwaysImpostor) {
         return YES;
@@ -640,7 +465,7 @@ __attribute__((constructor)) static void initialize() {
     return %orig;
 }
 
-// Unlimited Vision - Safe
+// Unlimited Vision
 - (float)GetVisionRadius {
     if ([LUBVSettings sharedInstance].unlimitedVision) {
         return 999.0f;
@@ -648,7 +473,7 @@ __attribute__((constructor)) static void initialize() {
     return %orig;
 }
 
-// See Ghosts - Safe
+// See Ghosts
 - (BOOL)IsGhost {
     if ([LUBVSettings sharedInstance].seeGhosts) {
         return NO;
@@ -658,7 +483,7 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
-// Vent Hooks - Safe
+// Vent
 %hook Vent
 
 - (float)GetCooldown {
@@ -677,7 +502,7 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
-// Sabotage - Safe
+// Sabotage
 %hook SabotageManager
 
 - (BOOL)CanSabotage {
@@ -689,7 +514,7 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
-// Kill Button - Safe
+// Kill
 %hook KillButtonManager
 
 - (BOOL)CanKill {
@@ -701,7 +526,19 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
-// Emergency Button - Safe
+// Report
+%hook MeetingHud
+
+- (BOOL)CanReport {
+    if ([LUBVSettings sharedInstance].alwaysCanReport) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
+// Emergency Button
 %hook EmergencyButton
 
 - (int)GetRemainingUses {
@@ -720,70 +557,7 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
-// ============================================================
-// OPTIONAL HOOKS - Comment out if they cause crashes
-// ============================================================
-
-// Unlock All IAP - May or may not work depending on game version
-%hook HatManager
-
-- (BOOL)IsHatUnlocked:(id)hat {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-%hook PetManager
-
-- (BOOL)IsPetUnlocked:(id)pet {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-%hook SkinManager
-
-- (BOOL)IsSkinUnlocked:(id)skin {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-%hook VisorManager
-
-- (BOOL)IsVisorUnlocked:(id)visor {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-%hook NamePlateManager
-
-- (BOOL)IsNamePlateUnlocked:(id)nameplate {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-// ============================================================
-// COOLDOWN HOOKS - Comment out if roles don't exist
-// ============================================================
-
+// Cooldowns
 %hook PhantomRole
 
 - (float)GetCooldown {
@@ -844,6 +618,62 @@ __attribute__((constructor)) static void initialize() {
 - (float)GetCooldown {
     if ([LUBVSettings sharedInstance].noGuardianAngelCooldown) {
         return 0.0f;
+    }
+    return %orig;
+}
+
+%end
+
+// Unlock All IAP
+%hook HatManager
+
+- (BOOL)IsHatUnlocked:(id)hat {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
+%hook PetManager
+
+- (BOOL)IsPetUnlocked:(id)pet {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
+%hook SkinManager
+
+- (BOOL)IsSkinUnlocked:(id)skin {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
+%hook VisorManager
+
+- (BOOL)IsVisorUnlocked:(id)visor {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
+%hook NamePlateManager
+
+- (BOOL)IsNamePlateUnlocked:(id)nameplate {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return YES;
     }
     return %orig;
 }
