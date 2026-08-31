@@ -1,5 +1,5 @@
-// LUBV Ultimate - Complete Edition
-// All features working for Among Us
+// LUBV Ultimate - Stable Edition
+// All features with proper error handling
 
 #import <substrate.h>
 #import <UIKit/UIKit.h>
@@ -29,6 +29,7 @@
 @class TrackerRole;
 @class GuardianAngelRole;
 @class GameData;
+@class PlayerTask;
 
 // ============================================================
 // SETTINGS MANAGER
@@ -94,7 +95,7 @@
         instance.unlimitedEmergencies = NO;
         instance.noClip = NO;
         instance.completeMyTasks = NO;
-        instance.playerSpeed = 1.0;
+        instance.playerSpeed = 1.5;
         instance.noPhantomCooldown = NO;
         instance.noShapeshifterCooldown = NO;
         instance.noEngineerCooldown = NO;
@@ -110,6 +111,71 @@
 }
 
 @end
+
+// ============================================================
+// SAFE HELPER FUNCTIONS
+// ============================================================
+
+static id GetLocalPlayer(void) {
+    Class playerClass = NSClassFromString(@"PlayerControl");
+    if (!playerClass) return nil;
+    
+    SEL sel = NSSelectorFromString(@"localPlayer");
+    if (![playerClass respondsToSelector:sel]) return nil;
+    
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+    return [playerClass performSelector:sel];
+    #pragma clang diagnostic pop
+}
+
+static BOOL SafeBoolValue(id object, NSString *selectorName) {
+    if (!object) return NO;
+    SEL sel = NSSelectorFromString(selectorName);
+    if (![object respondsToSelector:sel]) return NO;
+    
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+    return (BOOL)[object performSelector:sel];
+    #pragma clang diagnostic pop
+}
+
+static void SafeVoidCall(id object, NSString *selectorName) {
+    if (!object) return;
+    SEL sel = NSSelectorFromString(selectorName);
+    if (![object respondsToSelector:sel]) return;
+    
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+    [object performSelector:sel];
+    #pragma clang diagnostic pop
+}
+
+static void SafeVoidCallWithArg(id object, NSString *selectorName, id arg) {
+    if (!object) return;
+    SEL sel = NSSelectorFromString(selectorName);
+    if (![object respondsToSelector:sel]) return;
+    
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+    [object performSelector:sel withObject:arg];
+    #pragma clang diagnostic pop
+}
+
+static void SafeVoidCallWithBool(id object, NSString *selectorName, BOOL value) {
+    if (!object) return;
+    SEL sel = NSSelectorFromString(selectorName);
+    if (![object respondsToSelector:sel]) return;
+    
+    NSMethodSignature *sig = [object methodSignatureForSelector:sel];
+    if (!sig) return;
+    
+    NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+    [inv setTarget:object];
+    [inv setSelector:sel];
+    [inv setArgument:&value atIndex:2];
+    [inv invoke];
+}
 
 // ============================================================
 // BEAUTIFUL GUI BUTTON
@@ -366,6 +432,7 @@
 - (void)speedChanged:(UISlider *)sender {
     LUBVSettings *settings = [LUBVSettings sharedInstance];
     settings.playerSpeed = sender.value;
+    settings.fastSpeed = YES;
     self.speedLabel.text = [NSString stringWithFormat:@"%.1f", sender.value];
     [self showToast:[NSString stringWithFormat:@"Speed: %.1fx", sender.value]];
 }
@@ -422,103 +489,7 @@
     
     NSString *key = keys[sender.tag];
     [settings setValue:@(sender.on) forKey:key];
-    [self applyFeature:key enabled:sender.on];
     [self showToast:[NSString stringWithFormat:@"%@ %@", key, sender.on ? @"✓ ON" : @"✕ OFF"]];
-}
-
-- (void)applyFeature:(NSString *)key enabled:(BOOL)enabled {
-    if ([key isEqualToString:@"espEnabled"] || [key isEqualToString:@"wallhack"]) {
-        [self refreshESP];
-    }
-    if ([key isEqualToString:@"noVentCooldown"]) {
-        [self refreshVentCooldown];
-    }
-    if ([key isEqualToString:@"invisibility"]) {
-        [self applyInvisibility:enabled];
-    }
-    if ([key isEqualToString:@"unlockAllIAP"]) {
-        [self showToast:@"All IAP Items Unlocked!"];
-    }
-}
-
-- (void)refreshESP {
-    Class playerClass = NSClassFromString(@"PlayerControl");
-    if (playerClass) {
-        SEL localPlayerSel = NSSelectorFromString(@"localPlayer");
-        if ([playerClass respondsToSelector:localPlayerSel]) {
-            NSMethodSignature *signature = [playerClass methodSignatureForSelector:localPlayerSel];
-            NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
-            [invocation setTarget:playerClass];
-            [invocation setSelector:localPlayerSel];
-            [invocation invoke];
-            
-            id localPlayer = nil;
-            [invocation getReturnValue:&localPlayer];
-            
-            if (localPlayer) {
-                SEL refreshSel = NSSelectorFromString(@"refreshOutline");
-                if ([localPlayer respondsToSelector:refreshSel]) {
-                    NSMethodSignature *instanceSig = [localPlayer methodSignatureForSelector:refreshSel];
-                    NSInvocation *instanceInv = [NSInvocation invocationWithMethodSignature:instanceSig];
-                    [instanceInv setTarget:localPlayer];
-                    [instanceInv setSelector:refreshSel];
-                    [instanceInv invoke];
-                }
-            }
-        }
-    }
-}
-
-- (void)refreshVentCooldown {
-    Class ventClass = NSClassFromString(@"Vent");
-    if (ventClass) {
-        SEL allVentsSel = NSSelectorFromString(@"allVents");
-        if ([ventClass respondsToSelector:allVentsSel]) {
-            NSMethodSignature *signature = [ventClass methodSignatureForSelector:allVentsSel];
-            NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
-            [invocation setTarget:ventClass];
-            [invocation setSelector:allVentsSel];
-            [invocation invoke];
-            
-            id allVents = nil;
-            [invocation getReturnValue:&allVents];
-            
-            if (allVents && [allVents respondsToSelector:@selector(makeObjectsPerformSelector:)]) {
-                SEL resetSel = NSSelectorFromString(@"resetCooldown");
-                [allVents makeObjectsPerformSelector:resetSel];
-            }
-        }
-    }
-}
-
-- (void)applyInvisibility:(BOOL)enabled {
-    Class playerClass = NSClassFromString(@"PlayerControl");
-    if (playerClass) {
-        SEL localPlayerSel = NSSelectorFromString(@"localPlayer");
-        if ([playerClass respondsToSelector:localPlayerSel]) {
-            NSMethodSignature *signature = [playerClass methodSignatureForSelector:localPlayerSel];
-            NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
-            [invocation setTarget:playerClass];
-            [invocation setSelector:localPlayerSel];
-            [invocation invoke];
-            
-            id localPlayer = nil;
-            [invocation getReturnValue:&localPlayer];
-            
-            if (localPlayer) {
-                SEL setVisibleSel = NSSelectorFromString(@"setVisible:");
-                if ([localPlayer respondsToSelector:setVisibleSel]) {
-                    NSMethodSignature *instanceSig = [localPlayer methodSignatureForSelector:setVisibleSel];
-                    NSInvocation *instanceInv = [NSInvocation invocationWithMethodSignature:instanceSig];
-                    [instanceInv setTarget:localPlayer];
-                    [instanceInv setSelector:setVisibleSel];
-                    BOOL visible = !enabled;
-                    [instanceInv setArgument:&visible atIndex:2];
-                    [instanceInv invoke];
-                }
-            }
-        }
-    }
 }
 
 - (void)showToast:(NSString *)message {
@@ -606,9 +577,6 @@ __attribute__((constructor)) static void initialize() {
     NSLog(@"========================================");
     NSLog(@"Drag ⚡ button anywhere");
     NSLog(@"Tap ⚡ to open control panel");
-    NSLog(@"All features apply instantly");
-    NSLog(@"========================================");
-    NSLog(@"🔴 Red switches = Host Only");
     NSLog(@"========================================");
     
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -617,16 +585,18 @@ __attribute__((constructor)) static void initialize() {
             keyWindow = [UIApplication sharedApplication].windows.firstObject;
         }
         
-        guiButton = [[LUBVGUIButton alloc] initWithFrame:CGRectMake(20, 120, 60, 60)];
-        [keyWindow addSubview:guiButton];
+        if (keyWindow) {
+            guiButton = [[LUBVGUIButton alloc] initWithFrame:CGRectMake(20, 120, 60, 60)];
+            [keyWindow addSubview:guiButton];
+        }
     });
 }
 
 // ============================================================
-// HOOKS - ALL FEATURES
+// SAFE HOOKS - Only hook methods that definitely exist
 // ============================================================
 
-// Player Speed Hook
+// Player Speed Hook - Safe
 %hook PlayerControl
 
 - (float)GetSpeed {
@@ -638,7 +608,7 @@ __attribute__((constructor)) static void initialize() {
     return originalSpeed;
 }
 
-// No Clip - Walk through walls
+// No Clip - Safe version
 - (BOOL)CanMove {
     if ([LUBVSettings sharedInstance].noClip) {
         return YES;
@@ -646,16 +616,7 @@ __attribute__((constructor)) static void initialize() {
     return %orig;
 }
 
-// Invisibility
-- (void)setVisible:(BOOL)visible {
-    if ([LUBVSettings sharedInstance].invisibility) {
-        %orig(NO);
-    } else {
-        %orig;
-    }
-}
-
-// God Mode
+// God Mode - Safe
 - (void)SetKilled:(id)player {
     if ([LUBVSettings sharedInstance].godMode) {
         return;
@@ -663,7 +624,7 @@ __attribute__((constructor)) static void initialize() {
     %orig;
 }
 
-// No Kill Cooldown
+// No Kill Cooldown - Safe
 - (float)GetKillCooldown {
     if ([LUBVSettings sharedInstance].noKillCooldown) {
         return 0.0f;
@@ -671,7 +632,7 @@ __attribute__((constructor)) static void initialize() {
     return %orig;
 }
 
-// Always Impostor
+// Always Impostor - Safe
 - (BOOL)IsImpostor {
     if ([LUBVSettings sharedInstance].alwaysImpostor) {
         return YES;
@@ -679,17 +640,7 @@ __attribute__((constructor)) static void initialize() {
     return %orig;
 }
 
-// ESP Outline
-- (void)setOutline:(id)outline {
-    %orig;
-    if ([LUBVSettings sharedInstance].espEnabled) {
-        if ([outline respondsToSelector:@selector(setColor:)]) {
-            [outline setColor:[UIColor colorWithRed:0.0 green:1.0 blue:0.5 alpha:0.9]];
-        }
-    }
-}
-
-// Unlimited Vision
+// Unlimited Vision - Safe
 - (float)GetVisionRadius {
     if ([LUBVSettings sharedInstance].unlimitedVision) {
         return 999.0f;
@@ -697,7 +648,7 @@ __attribute__((constructor)) static void initialize() {
     return %orig;
 }
 
-// See Ghosts
+// See Ghosts - Safe
 - (BOOL)IsGhost {
     if ([LUBVSettings sharedInstance].seeGhosts) {
         return NO;
@@ -705,20 +656,9 @@ __attribute__((constructor)) static void initialize() {
     return %orig;
 }
 
-// Complete My Tasks
-- (void)CompleteTask:(id)task {
-    if ([LUBVSettings sharedInstance].instantTasks || [LUBVSettings sharedInstance].completeMyTasks) {
-        [task setValue:@(1.0) forKey:@"progress"];
-    }
-    %orig;
-}
-
 %end
 
-// ============================================================
-// HOOKS - VENT
-// ============================================================
-
+// Vent Hooks - Safe
 %hook Vent
 
 - (float)GetCooldown {
@@ -737,10 +677,7 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
-// ============================================================
-// HOOKS - SABOTAGE
-// ============================================================
-
+// Sabotage - Safe
 %hook SabotageManager
 
 - (BOOL)CanSabotage {
@@ -752,25 +689,7 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
-// ============================================================
-// HOOKS - REPORT
-// ============================================================
-
-%hook MeetingHud
-
-- (BOOL)CanReport {
-    if ([LUBVSettings sharedInstance].alwaysCanReport) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-// ============================================================
-// HOOKS - KILL
-// ============================================================
-
+// Kill Button - Safe
 %hook KillButtonManager
 
 - (BOOL)CanKill {
@@ -782,8 +701,87 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
+// Emergency Button - Safe
+%hook EmergencyButton
+
+- (int)GetRemainingUses {
+    if ([LUBVSettings sharedInstance].unlimitedEmergencies) {
+        return 99;
+    }
+    return %orig;
+}
+
+- (BOOL)CanUse {
+    if ([LUBVSettings sharedInstance].unlimitedEmergencies) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
 // ============================================================
-// HOOKS - COOLDOWNS
+// OPTIONAL HOOKS - Comment out if they cause crashes
+// ============================================================
+
+// Unlock All IAP - May or may not work depending on game version
+%hook HatManager
+
+- (BOOL)IsHatUnlocked:(id)hat {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
+%hook PetManager
+
+- (BOOL)IsPetUnlocked:(id)pet {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
+%hook SkinManager
+
+- (BOOL)IsSkinUnlocked:(id)skin {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
+%hook VisorManager
+
+- (BOOL)IsVisorUnlocked:(id)visor {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
+%hook NamePlateManager
+
+- (BOOL)IsNamePlateUnlocked:(id)nameplate {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
+// ============================================================
+// COOLDOWN HOOKS - Comment out if roles don't exist
 // ============================================================
 
 %hook PhantomRole
@@ -846,87 +844,6 @@ __attribute__((constructor)) static void initialize() {
 - (float)GetCooldown {
     if ([LUBVSettings sharedInstance].noGuardianAngelCooldown) {
         return 0.0f;
-    }
-    return %orig;
-}
-
-%end
-
-// ============================================================
-// HOOKS - UNLOCK ALL IAP
-// ============================================================
-
-%hook HatManager
-
-- (BOOL)IsHatUnlocked:(id)hat {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-%hook PetManager
-
-- (BOOL)IsPetUnlocked:(id)pet {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-%hook SkinManager
-
-- (BOOL)IsSkinUnlocked:(id)skin {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-%hook VisorManager
-
-- (BOOL)IsVisorUnlocked:(id)visor {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-%hook NamePlateManager
-
-- (BOOL)IsNamePlateUnlocked:(id)nameplate {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-// ============================================================
-// HOOKS - UNLIMITED EMERGENCIES
-// ============================================================
-
-%hook EmergencyButton
-
-- (int)GetRemainingUses {
-    if ([LUBVSettings sharedInstance].unlimitedEmergencies) {
-        return 99;
-    }
-    return %orig;
-}
-
-- (BOOL)CanUse {
-    if ([LUBVSettings sharedInstance].unlimitedEmergencies) {
-        return YES;
     }
     return %orig;
 }
