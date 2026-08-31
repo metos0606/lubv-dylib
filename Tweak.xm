@@ -1,6 +1,6 @@
 //
 //  Tweak.xm
-//  Among Us iOS Cheat (FULLY FIXED - FINAL)
+//  Among Us iOS Cheat (FINAL - NO WARNINGS)
 //  
 //  Features:
 //  - Always Impostor
@@ -30,7 +30,7 @@ static BOOL g_showAllPlayers = YES;
 static BOOL g_noBanMode = YES;
 
 // ============================================================
-// MARK: - GLOBAL ESP OVERLAY (FIXED)
+// MARK: - GLOBAL ESP OVERLAY
 // ============================================================
 
 static void *g_espOverlay = nil;
@@ -44,6 +44,7 @@ static BOOL hooked_CanMakePurchases(id self, SEL sel);
 static id hooked_GetProductInfo(id self, SEL sel, id productId);
 static void hooked_OnPlayerSpawn(id self, SEL sel, id player);
 static void showSettingsMenu(void);
+static void handleTripleTap(UIGestureRecognizer *gesture);
 
 // ============================================================
 // MARK: - Memory Protection Helper
@@ -113,15 +114,11 @@ static GameState g_gameState = {0};
 @end
 
 // ============================================================
-// MARK: - Settings Menu GUI (Simple & Functional)
+// MARK: - Settings Menu GUI
 // ============================================================
 
 @interface CheatSettingsViewController : UIViewController {
-    UISwitch *impostorSwitch;
-    UISwitch *cosmeticsSwitch;
-    UISwitch *espSwitch;
-    UISwitch *autoWinSwitch;
-    UISwitch *antiBanSwitch;
+    NSMutableDictionary *toggles;
     UILabel *statusLabel;
 }
 @end
@@ -131,16 +128,14 @@ static GameState g_gameState = {0};
 - (void)viewDidLoad {
     [super viewDidLoad];
     
+    toggles = [NSMutableDictionary dictionary];
+    
     self.view.backgroundColor = [UIColor colorWithWhite:0.1 alpha:0.95];
     self.title = @"Cheat Menu";
     
     self.navigationController.navigationBar.barStyle = UIBarStyleBlack;
     self.navigationController.navigationBar.translucent = NO;
     self.navigationController.navigationBar.barTintColor = [UIColor colorWithRed:0.15 green:0.15 blue:0.15 alpha:1.0];
-    self.navigationController.navigationBar.titleTextAttributes = @{
-        NSForegroundColorAttributeName: [UIColor whiteColor],
-        NSFontAttributeName: [UIFont boldSystemFontOfSize:20]
-    };
     
     UIBarButtonItem *closeBtn = [[UIBarButtonItem alloc] initWithTitle:@"✕" 
                                                                  style:UIBarButtonItemStylePlain 
@@ -163,16 +158,14 @@ static GameState g_gameState = {0};
     CGFloat screenWidth = self.view.bounds.size.width;
     CGFloat padding = 20;
     CGFloat yOffset = 20;
-    CGFloat width = screenWidth - (padding * 2);
+    CGFloat contentWidth = screenWidth - (padding * 2);
     
-    // Scroll view
     UIScrollView *scrollView = [[UIScrollView alloc] initWithFrame:self.view.bounds];
     scrollView.backgroundColor = [UIColor clearColor];
     scrollView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [self.view addSubview:scrollView];
     
-    // Content view
-    UIView *contentView = [[UIView alloc] initWithFrame:CGRectMake(padding, 0, width, 0)];
+    UIView *contentView = [[UIView alloc] initWithFrame:CGRectMake(padding, 0, contentWidth, 0)];
     contentView.backgroundColor = [UIColor colorWithWhite:0.15 alpha:1.0];
     contentView.layer.cornerRadius = 16;
     contentView.layer.masksToBounds = YES;
@@ -181,7 +174,7 @@ static GameState g_gameState = {0};
     CGFloat innerY = padding;
     
     // Title
-    UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, innerY, width - (padding * 2), 30)];
+    UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, innerY, contentWidth - (padding * 2), 30)];
     titleLabel.text = @"⚙️ Cheat Settings";
     titleLabel.textColor = [UIColor whiteColor];
     titleLabel.font = [UIFont boldSystemFontOfSize:22];
@@ -190,7 +183,7 @@ static GameState g_gameState = {0};
     innerY += 40;
     
     // Status
-    statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, innerY, width - (padding * 2), 20)];
+    statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, innerY, contentWidth - (padding * 2), 20)];
     statusLabel.text = @"Status: Ready";
     statusLabel.textColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
     statusLabel.font = [UIFont systemFontOfSize:14];
@@ -199,60 +192,50 @@ static GameState g_gameState = {0};
     innerY += 30;
     
     // Separator
-    UIView *sep = [[UIView alloc] initWithFrame:CGRectMake(padding, innerY, width - (padding * 2), 1)];
+    UIView *sep = [[UIView alloc] initWithFrame:CGRectMake(padding, innerY, contentWidth - (padding * 2), 1)];
     sep.backgroundColor = [UIColor colorWithWhite:0.3 alpha:1.0];
     [contentView addSubview:sep];
     innerY += 20;
     
-    // Toggle helper
-    innerY += [self createToggleWithTitle:@"🔴 Always Impostor" 
-                                 subtitle:@"You will always be the Impostor"
-                                  default:g_alwaysImpostor
-                                   toggle:&impostorSwitch
-                                   atY:innerY
-                                   width:width - (padding * 2)];
+    // Toggle helpers - store toggles in dictionary with keys
+    innerY += [self createToggleWithKey:@"impostor" title:@"🔴 Always Impostor" 
+                               subtitle:@"You will always be the Impostor"
+                                default:g_alwaysImpostor
+                                    atY:innerY width:contentWidth - (padding * 2)];
     innerY += 10;
     
-    innerY += [self createToggleWithTitle:@"👗 Unlock Cosmetics" 
-                                 subtitle:@"All hats, skins, pets, visors"
-                                  default:g_unlockAllCosmetics
-                                   toggle:&cosmeticsSwitch
-                                   atY:innerY
-                                   width:width - (padding * 2)];
+    innerY += [self createToggleWithKey:@"cosmetics" title:@"👗 Unlock Cosmetics" 
+                               subtitle:@"All hats, skins, pets, visors"
+                                default:g_unlockAllCosmetics
+                                    atY:innerY width:contentWidth - (padding * 2)];
     innerY += 10;
     
-    innerY += [self createToggleWithTitle:@"👁️ ESP" 
-                                 subtitle:@"Show player positions, roles"
-                                  default:g_espEnabled
-                                   toggle:&espSwitch
-                                   atY:innerY
-                                   width:width - (padding * 2)];
+    innerY += [self createToggleWithKey:@"esp" title:@"👁️ ESP" 
+                               subtitle:@"Show player positions, roles"
+                                default:g_espEnabled
+                                    atY:innerY width:contentWidth - (padding * 2)];
     innerY += 10;
     
-    innerY += [self createToggleWithTitle:@"🏆 Auto Win" 
-                                 subtitle:@"Instantly win as Impostor"
-                                  default:g_autoWinEnabled
-                                   toggle:&autoWinSwitch
-                                   atY:innerY
-                                   width:width - (padding * 2)];
+    innerY += [self createToggleWithKey:@"autowin" title:@"🏆 Auto Win" 
+                               subtitle:@"Instantly win as Impostor"
+                                default:g_autoWinEnabled
+                                    atY:innerY width:contentWidth - (padding * 2)];
     innerY += 10;
     
-    innerY += [self createToggleWithTitle:@"🛡️ Anti-Ban" 
-                                 subtitle:@"Bypass anti-cheat detection"
-                                  default:g_noBanMode
-                                   toggle:&antiBanSwitch
-                                   atY:innerY
-                                   width:width - (padding * 2)];
+    innerY += [self createToggleWithKey:@"antiban" title:@"🛡️ Anti-Ban" 
+                               subtitle:@"Bypass anti-cheat detection"
+                                default:g_noBanMode
+                                    atY:innerY width:contentWidth - (padding * 2)];
     innerY += 20;
     
     // Separator
-    UIView *sep2 = [[UIView alloc] initWithFrame:CGRectMake(padding, innerY, width - (padding * 2), 1)];
+    UIView *sep2 = [[UIView alloc] initWithFrame:CGRectMake(padding, innerY, contentWidth - (padding * 2), 1)];
     sep2.backgroundColor = [UIColor colorWithWhite:0.3 alpha:1.0];
     [contentView addSubview:sep2];
     innerY += 20;
     
     // Credits
-    UILabel *creditsLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, innerY, width - (padding * 2), 20)];
+    UILabel *creditsLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, innerY, contentWidth - (padding * 2), 20)];
     creditsLabel.text = @"Made with ❤️ for LO";
     creditsLabel.textColor = [UIColor colorWithWhite:0.5 alpha:1.0];
     creditsLabel.font = [UIFont systemFontOfSize:12];
@@ -260,30 +243,23 @@ static GameState g_gameState = {0};
     [contentView addSubview:creditsLabel];
     innerY += 30;
     
-    // Set content size
-    contentView.frame = CGRectMake(padding, 20, width, innerY);
+    contentView.frame = CGRectMake(padding, 20, contentWidth, innerY);
     scrollView.contentSize = CGSizeMake(screenWidth, innerY + 40);
 }
 
-- (CGFloat)createToggleWithTitle:(NSString *)title 
-                        subtitle:(NSString *)subtitle 
-                         default:(BOOL)defaultValue 
-                          toggle:(UISwitch **)toggleOut
-                            atY:(CGFloat)y 
-                          width:(CGFloat)width {
+- (CGFloat)createToggleWithKey:(NSString *)key title:(NSString *)title 
+                      subtitle:(NSString *)subtitle default:(BOOL)defaultValue
+                          atY:(CGFloat)y width:(CGFloat)width {
     
-    // Use __strong to avoid __autoreleasing issues
     UISwitch *toggle = [[UISwitch alloc] init];
     toggle.onTintColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
     toggle.tintColor = [UIColor colorWithWhite:0.3 alpha:1.0];
     toggle.on = defaultValue;
     
-    // Position the switch on the right
     CGFloat switchWidth = 51;
     CGFloat switchHeight = 31;
     toggle.frame = CGRectMake(width - switchWidth, y + 14, switchWidth, switchHeight);
     
-    // Labels on the left
     UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(16, y + 4, width - switchWidth - 24, 22)];
     titleLabel.text = title;
     titleLabel.textColor = [UIColor whiteColor];
@@ -294,7 +270,6 @@ static GameState g_gameState = {0};
     subtitleLabel.textColor = [UIColor colorWithWhite:0.6 alpha:1.0];
     subtitleLabel.font = [UIFont systemFontOfSize:12];
     
-    // Wrapper view
     UIView *wrapper = [[UIView alloc] initWithFrame:CGRectMake(0, y, width, 60)];
     wrapper.backgroundColor = [UIColor colorWithWhite:0.12 alpha:1.0];
     wrapper.layer.cornerRadius = 12;
@@ -304,14 +279,22 @@ static GameState g_gameState = {0};
     [wrapper addSubview:subtitleLabel];
     [wrapper addSubview:toggle];
     
-    // Store the toggle reference directly
-    *toggleOut = toggle;
+    // Store toggle in dictionary using the key
+    toggles[key] = toggle;
     
-    // Add to the view hierarchy
-    UIView *contentView = (UIView *)toggle.superview;
+    // Add to the view hierarchy - find the content view
+    UIView *contentView = [self.view viewWithTag:999];
     if (!contentView) {
-        // We'll add it later when we have a parent
-        // The caller will add this wrapper to their content view
+        // If we can't find it, just add to scroll view
+        UIScrollView *scrollView = (UIScrollView *)self.view.subviews.firstObject;
+        if ([scrollView isKindOfClass:[UIScrollView class]]) {
+            UIView *cv = scrollView.subviews.firstObject;
+            if (cv) {
+                [cv addSubview:wrapper];
+            }
+        }
+    } else {
+        [contentView addSubview:wrapper];
     }
     
     return 70;
@@ -322,11 +305,17 @@ static GameState g_gameState = {0};
 }
 
 - (void)applyTapped {
-    g_alwaysImpostor = impostorSwitch.on;
-    g_unlockAllCosmetics = cosmeticsSwitch.on;
-    g_espEnabled = espSwitch.on;
-    g_autoWinEnabled = autoWinSwitch.on;
-    g_noBanMode = antiBanSwitch.on;
+    UISwitch *impostorToggle = toggles[@"impostor"];
+    UISwitch *cosmeticsToggle = toggles[@"cosmetics"];
+    UISwitch *espToggle = toggles[@"esp"];
+    UISwitch *autoWinToggle = toggles[@"autowin"];
+    UISwitch *antiBanToggle = toggles[@"antiban"];
+    
+    if (impostorToggle) g_alwaysImpostor = impostorToggle.on;
+    if (cosmeticsToggle) g_unlockAllCosmetics = cosmeticsToggle.on;
+    if (espToggle) g_espEnabled = espToggle.on;
+    if (autoWinToggle) g_autoWinEnabled = autoWinToggle.on;
+    if (antiBanToggle) g_noBanMode = antiBanToggle.on;
     
     statusLabel.text = @"✅ Applied!";
     statusLabel.textColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
@@ -369,6 +358,10 @@ static void showSettingsMenu(void) {
     });
 }
 
+static void handleTripleTap(UIGestureRecognizer *gesture) {
+    showSettingsMenu();
+}
+
 // ============================================================
 // MARK: - Hook Functions - Always Impostor
 // ============================================================
@@ -386,12 +379,6 @@ static BOOL hooked_PlayerControl_get_IsImpostor(id self, SEL sel) {
         return NO;
     }
     return orig_PlayerControl_get_IsImpostor ? orig_PlayerControl_get_IsImpostor(self, sel) : NO;
-}
-
-static BOOL (*orig_PlayerControl_get_IsImpostor_forNetwork)(id self, SEL sel);
-static BOOL hooked_PlayerControl_get_IsImpostor_forNetwork(id self, SEL sel) {
-    return orig_PlayerControl_get_IsImpostor_forNetwork ? 
-           orig_PlayerControl_get_IsImpostor_forNetwork(self, sel) : NO;
 }
 
 // ============================================================
@@ -484,7 +471,6 @@ static BOOL hooked_IsAvailable(id self, SEL sel) {
         
         NSString *playerName = [player valueForKey:@"name"];
         BOOL isImpostor = [[player valueForKey:@"IsImpostor"] boolValue];
-        (void)[[player valueForKey:@"colorId"] intValue];
         
         id playerPhysics = [player valueForKey:@"myPhysics"];
         if (!playerPhysics) continue;
@@ -570,7 +556,6 @@ static void hooked_CheckEndCriteria(id self, SEL sel) {
                     SEL onMurderSel = NSSelectorFromString(@"OnMurder:isKiller:isVictim:isShapeShifted:shapeshiftTargetId:victimId:");
                     if ([localPlayer respondsToSelector:onMurderSel]) {
                         id playerId = [player valueForKey:@"PlayerId"];
-                        (void)[localPlayer valueForKey:@"PlayerId"];
                         ((void (*)(id, SEL, id, BOOL, BOOL, BOOL, int, int))objc_msgSend)(
                             localPlayer, onMurderSel, playerId, YES, NO, NO, 0, [playerId intValue]
                         );
@@ -695,14 +680,6 @@ static void hooked_OnPlayerSpawn(id self, SEL sel, id player) {
 }
 
 // ============================================================
-// MARK: - Menu Button Gesture Handler (C function compatible)
-// ============================================================
-
-static void handleTripleTap(UIGestureRecognizer *gesture) {
-    showSettingsMenu();
-}
-
-// ============================================================
 // MARK: - Injection Entry Point
 // ============================================================
 
@@ -714,10 +691,8 @@ static void init_cheat(void) {
         NSLog(@"[AmongUsCheat] Initializing cheat features...");
         
         Class playerControl = objc_getClass("PlayerControl");
-        Class gameData = objc_getClass("GameData");
         Class shipStatus = objc_getClass("ShipStatus");
         Class innerNetClient = objc_getClass("InnerNetClient");
-        Class meetingHud = objc_getClass("MeetingHud");
         Class hatManager = objc_getClass("HatManager");
         
         if (!playerControl) {
@@ -729,7 +704,6 @@ static void init_cheat(void) {
         // Hook PlayerControl - Always Impostor
         // ============================================================
         SEL isImpostorSel = NSSelectorFromString(@"IsImpostor");
-        SEL isImpostorForNetworkSel = NSSelectorFromString(@"IsImpostorForNetwork");
         
         if (isImpostorSel) {
             Method origMethod = class_getInstanceMethod(playerControl, isImpostorSel);
@@ -975,43 +949,3 @@ extern "C" void AnalyzeMemory() {
     
     NSLog(@"[AmongUsCheat] Found game classes: %@", gameClasses);
 }
-
-// ============================================================
-// MARK: - Makefile for Building
-// ============================================================
-
-/*
-Makefile:
-ARCHS = arm64
-TARGET = iphone:10.0
-SDK = iphoneos
-
-include $(THEOS)/makefiles/common.mk
-
-TOOL_NAME = AmongUsCheat
-AmongUsCheat_FILES = Tweak.xm
-AmongUsCheat_CFLAGS = -fobjc-arc -Wno-unused-variable -Wno-unguarded-availability-new
-AmongUsCheat_LDFLAGS = -framework UIKit -framework Foundation
-
-include $(THEOS_MAKE_FILES)/tool.mk
-
-// Install to device:
-// scp AmongUsCheat.dylib root@device_ip:/var/mobile/Library/MobileSubstrate/DynamicLibraries/
-*/
-
-// ============================================================
-// MARK: - Theos Control File
-// ============================================================
-
-/*
-control:
-Package: com.amongus.cheat
-Name: Among Us Cheat
-Version: 1.0.0
-Architecture: iphoneos-arm
-Description: Among Us cheat with Always Impostor, ESP, Auto Win, and Anti-Ban
-Maintainer: CheatDev
-Author: CheatDev
-Section: Tweaks
-Depends: mobilesubstrate (>= 0.9.5000)
-*/
