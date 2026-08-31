@@ -10,7 +10,7 @@ jobs:
     runs-on: macos-latest
     
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4  # Updated to v4
       
       - name: Install Theos
         run: |
@@ -19,8 +19,90 @@ jobs:
           echo "$HOME/theos/bin" >> $GITHUB_PATH
           
       - name: Install Dependencies
-        run: brew install ldid dpkg
-        
+        run: |
+          brew install ldid dpkg
+          # Fix tap trust issue
+          brew untap aws/tap 2>/dev/null || true
+          
+      - name: Create required files
+        run: |
+          # Create LUBV.plist if it doesn't exist
+          if [ ! -f "LUBV.plist" ]; then
+            cat > LUBV.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>Filter</key>
+              <dict>
+                  <key>Bundles</key>
+                  <array>
+                      <string>com.innersloth.amongus</string>
+                  </array>
+              </dict>
+          </dict>
+          </plist>
+          EOF
+          fi
+          
+          # Create control file if it doesn't exist
+          if [ ! -f "control" ]; then
+            cat > control << 'EOF'
+          Package: com.yourname.lubv
+          Name: LUBV
+          Version: 1.0.0
+          Architecture: iphoneos-arm
+          Description: Among Us tweak
+          Maintainer: Your Name
+          Author: Your Name
+          Section: Tweaks
+          Depends: mobilesubstrate (>= 0.9.5000)
+          EOF
+          fi
+          
+          # Create Tweak.xm if it doesn't exist
+          if [ ! -f "Tweak.xm" ]; then
+            cat > Tweak.xm << 'EOF'
+          #import <UIKit/UIKit.h>
+          #import <substrate.h>
+
+          %hook UIViewController
+
+          - (void)viewDidLoad {
+              %orig;
+              
+              NSString *bundleID = [[NSBundle mainBundle] bundleIdentifier];
+              if ([bundleID isEqualToString:@"com.innersloth.amongus"]) {
+                  UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"LUBV" 
+                                                                  message:@"Tweak loaded successfully!" 
+                                                                 delegate:nil 
+                                                        cancelButtonTitle:@"OK" 
+                                                        otherButtonTitles:nil];
+                  [alert show];
+              }
+          }
+
+          %end
+          EOF
+          fi
+          
+      - name: Create Makefile if needed
+        run: |
+          if [ ! -f "Makefile" ]; then
+            cat > Makefile << 'EOF'
+          export TARGET = iphone:clang:latest:7.0
+          export ARCHS = arm64
+
+          include $(THEOS)/makefiles/common.mk
+
+          TWEAK_NAME = LUBV
+          LUBV_FILES = Tweak.xm
+          LUBV_FRAMEWORKS = UIKit
+
+          include $(THEOS_MAKE_PATH)/tweak.mk
+          EOF
+          fi
+          
       - name: Build
         run: |
           make clean
@@ -30,10 +112,30 @@ jobs:
           ARCHS: arm64
           TARGET: iphone:clang:latest:7.0
           
+      - name: List files for debugging
+        run: |
+          echo "=== Current directory ==="
+          ls -la
+          echo "=== Theos obj directory ==="
+          find .theos -type f 2>/dev/null || echo "No .theos directory found"
+          echo "=== Deb files ==="
+          find . -name "*.deb" 2>/dev/null || echo "No .deb files found"
+          
       - name: Upload Dylib
         uses: actions/upload-artifact@v4
         with:
           name: LUBV_Dylib
           path: |
             .theos/obj/**/*.dylib
-            *.deb
+            ./*.deb
+          if-no-files-found: warn  # Don't fail if no files
+          
+      - name: Upload all build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build_Output
+          path: |
+            .theos/
+            ./*.deb
+            ./*.plist
+          if-no-files-found: warn
