@@ -68,7 +68,6 @@ typedef struct {
     void *shipStatus;
 } GameState;
 
-static GameState g_gameState = {0};
 
 // ============================================================
 // MARK: - Class Definitions for Runtime Hooking
