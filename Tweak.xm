@@ -1,6 +1,6 @@
 //
 //  Tweak.xm
-//  Among Us iOS Cheat (FINAL - NO WARNINGS)
+//  Among Us iOS Cheat (FINAL - ACTUALLY CLEAN)
 //  
 //  Features:
 //  - Always Impostor
@@ -157,7 +157,7 @@ static GameState g_gameState = {0};
 - (void)setupUI {
     CGFloat screenWidth = self.view.bounds.size.width;
     CGFloat padding = 20;
-    CGFloat yOffset = 20;
+    CGFloat innerY = padding;
     CGFloat contentWidth = screenWidth - (padding * 2);
     
     UIScrollView *scrollView = [[UIScrollView alloc] initWithFrame:self.view.bounds];
@@ -170,8 +170,6 @@ static GameState g_gameState = {0};
     contentView.layer.cornerRadius = 16;
     contentView.layer.masksToBounds = YES;
     [scrollView addSubview:contentView];
-    
-    CGFloat innerY = padding;
     
     // Title
     UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, innerY, contentWidth - (padding * 2), 30)];
@@ -257,8 +255,7 @@ static GameState g_gameState = {0};
     toggle.on = defaultValue;
     
     CGFloat switchWidth = 51;
-    CGFloat switchHeight = 31;
-    toggle.frame = CGRectMake(width - switchWidth, y + 14, switchWidth, switchHeight);
+    toggle.frame = CGRectMake(width - switchWidth, y + 14, switchWidth, 31);
     
     UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(16, y + 4, width - switchWidth - 24, 22)];
     titleLabel.text = title;
@@ -279,22 +276,15 @@ static GameState g_gameState = {0};
     [wrapper addSubview:subtitleLabel];
     [wrapper addSubview:toggle];
     
-    // Store toggle in dictionary using the key
     toggles[key] = toggle;
     
-    // Add to the view hierarchy - find the content view
-    UIView *contentView = [self.view viewWithTag:999];
-    if (!contentView) {
-        // If we can't find it, just add to scroll view
-        UIScrollView *scrollView = (UIScrollView *)self.view.subviews.firstObject;
-        if ([scrollView isKindOfClass:[UIScrollView class]]) {
-            UIView *cv = scrollView.subviews.firstObject;
-            if (cv) {
-                [cv addSubview:wrapper];
-            }
+    // Add to the view hierarchy
+    UIScrollView *scrollView = (UIScrollView *)self.view.subviews.firstObject;
+    if ([scrollView isKindOfClass:[UIScrollView class]]) {
+        UIView *cv = scrollView.subviews.firstObject;
+        if (cv) {
+            [cv addSubview:wrapper];
         }
-    } else {
-        [contentView addSubview:wrapper];
     }
     
     return 70;
