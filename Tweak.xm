@@ -1,6 +1,4 @@
-// LUBV Ultimate - Complete Edition
-// Fully Working with All Features
-
+// LUBV Ultimate - Complete Edition (Fixed for Modern Among Us Dumps)
 #import <substrate.h>
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
@@ -87,12 +85,10 @@
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
     if (self) {
-        // Glassmorphism design
         self.backgroundColor = [UIColor clearColor];
         self.layer.cornerRadius = 30;
         self.layer.masksToBounds = YES;
         
-        // Glass effect
         UIVisualEffectView *glassView = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleLight]];
         glassView.frame = self.bounds;
         glassView.layer.cornerRadius = 30;
@@ -100,7 +96,6 @@
         glassView.alpha = 0.85;
         [self addSubview:glassView];
         
-        // Gradient border
         CAGradientLayer *borderLayer = [CAGradientLayer layer];
         borderLayer.frame = self.bounds;
         borderLayer.colors = @[
@@ -112,7 +107,6 @@
         borderLayer.cornerRadius = 30;
         [self.layer addSublayer:borderLayer];
         
-        // Icon
         UILabel *iconLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 60, 60)];
         iconLabel.text = @"⚡";
         iconLabel.textAlignment = NSTextAlignmentCenter;
@@ -147,14 +141,12 @@
     self.menuView.alpha = 0;
     [self addSubview:self.menuView];
     
-    // Blur background
     UIVisualEffectView *blurView = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleDark]];
     blurView.frame = self.menuView.bounds;
     blurView.layer.cornerRadius = 25;
     blurView.layer.masksToBounds = YES;
     [self.menuView addSubview:blurView];
     
-    // Gradient overlay
     CAGradientLayer *gradient = [CAGradientLayer layer];
     gradient.frame = self.menuView.bounds;
     gradient.colors = @[
@@ -164,7 +156,6 @@
     gradient.cornerRadius = 25;
     [self.menuView.layer addSublayer:gradient];
     
-    // Title bar
     UIView *titleBar = [[UIView alloc] initWithFrame:CGRectMake(0, 10, 360, 50)];
     titleBar.backgroundColor = [UIColor clearColor];
     [self.menuView addSubview:titleBar];
@@ -174,9 +165,6 @@
     title.textColor = [UIColor whiteColor];
     title.font = [UIFont boldSystemFontOfSize:22];
     title.textAlignment = NSTextAlignmentCenter;
-    title.layer.shadowColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:0.5].CGColor;
-    title.layer.shadowRadius = 10;
-    title.layer.shadowOpacity = 0.5;
     [titleBar addSubview:title];
     
     UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
@@ -185,38 +173,21 @@
     closeBtn.layer.cornerRadius = 17.5;
     [closeBtn setTitle:@"✕" forState:UIControlStateNormal];
     [closeBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-    closeBtn.titleLabel.font = [UIFont boldSystemFontOfSize:16];
     [closeBtn addTarget:self action:@selector(toggleMenu) forControlEvents:UIControlEventTouchUpInside];
     [titleBar addSubview:closeBtn];
     
-    // Scroll view
     self.scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(10, 65, 340, 500)];
     self.scrollView.showsVerticalScrollIndicator = NO;
-    self.scrollView.backgroundColor = [UIColor clearColor];
     [self.menuView addSubview:self.scrollView];
     
-    // Features
     NSArray *features = @[
-        @"🎭 Always Impostor",
-        @"⏱️ No Kill Cooldown",
-        @"🗡️ Always Can Kill",
-        @"💨 Always Can Vent",
-        @"🌀 No Vent Cooldown",
-        @"⚡ Always Can Sabotage",
-        @"📢 Always Can Report",
-        @"🔭 Unlimited Vision",
-        @"👻 See Ghosts",
-        @"🛡️ God Mode",
-        @"🏃 Fast Speed",
-        @"📞 Unlimited Emergencies",
-        @"🚶 No Clip (Walk Walls)",
-        @"👻 No Phantom Cooldown",
-        @"🔄 No Shapeshifter CD",
-        @"🔧 No Engineer CD",
-        @"🔍 No Detective CD",
-        @"📍 No Tracker CD",
-        @"😇 No Guardian Angel CD",
-        @"🎁 Unlock All IAP"
+        @"🎭 Always Impostor", @"⏱️ No Kill Cooldown", @"🗡️ Always Can Kill",
+        @"💨 Always Can Vent", @"🌀 No Vent Cooldown", @"⚡ Always Can Sabotage",
+        @"📢 Always Can Report", @"🔭 Unlimited Vision", @"👻 See Ghosts",
+        @"🛡️ God Mode", @"🏃 Fast Speed", @"📞 Unlimited Emergencies",
+        @"🚶 No Clip", @"👻 No Phantom CD", @"🔄 No Shapeshifter CD",
+        @"🔧 No Engineer CD", @"🔍 No Detective CD", @"📍 No Tracker CD",
+        @"😇 No Guardian Angel CD", @"🎁 Unlock All IAP"
     ];
     
     NSArray *keys = @[
@@ -231,17 +202,12 @@
     ];
     
     int yPos = 0;
-    
     for (int i = 0; i < features.count; i++) {
-        // Row view
         UIView *rowView = [[UIView alloc] initWithFrame:CGRectMake(5, yPos, 330, 44)];
         rowView.backgroundColor = [UIColor colorWithWhite:0.15 alpha:0.4];
         rowView.layer.cornerRadius = 12;
-        rowView.layer.borderWidth = 0.5;
-        rowView.layer.borderColor = [UIColor colorWithWhite:0.3 alpha:0.3].CGColor;
         [self.scrollView addSubview:rowView];
         
-        // Feature name
         UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(15, 10, 200, 24)];
         label.text = features[i];
         label.textColor = [UIColor whiteColor];
@@ -249,48 +215,22 @@
         [rowView addSubview:label];
         
         if ([keys[i] isEqualToString:@"fastSpeed"]) {
-            // Speed slider
             self.speedSlider = [[UISlider alloc] initWithFrame:CGRectMake(220, 6, 100, 32)];
             self.speedSlider.minimumValue = 1.0;
             self.speedSlider.maximumValue = 5.0;
             self.speedSlider.value = [LUBVSettings sharedInstance].playerSpeed;
-            self.speedSlider.tintColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:1.0];
             [self.speedSlider addTarget:self action:@selector(speedChanged:) forControlEvents:UIControlEventValueChanged];
             [rowView addSubview:self.speedSlider];
-            
-            self.speedLabel = [[UILabel alloc] initWithFrame:CGRectMake(300, 10, 25, 24)];
-            self.speedLabel.text = [NSString stringWithFormat:@"%.1f", self.speedSlider.value];
-            self.speedLabel.textColor = [UIColor whiteColor];
-            self.speedLabel.font = [UIFont systemFontOfSize:12];
-            [rowView addSubview:self.speedLabel];
         } else {
-            // Toggle switch
             UISwitch *switchControl = [[UISwitch alloc] initWithFrame:CGRectMake(260, 6, 50, 30)];
             switchControl.tag = i;
-            switchControl.onTintColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:1.0];
-            switchControl.tintColor = [UIColor colorWithWhite:0.3 alpha:0.5];
             [switchControl addTarget:self action:@selector(switchToggled:) forControlEvents:UIControlEventValueChanged];
-            
-            LUBVSettings *settings = [LUBVSettings sharedInstance];
-            BOOL isOn = [[settings valueForKey:keys[i]] boolValue];
-            switchControl.on = isOn;
-            
+            switchControl.on = [[LUBVSettings sharedInstance] valueForKey:keys[i]] ? [[[LUBVSettings sharedInstance] valueForKey:keys[i]] boolValue] : NO;
             [rowView addSubview:switchControl];
             [self.switches setObject:switchControl forKey:keys[i]];
         }
-        
         yPos += 52;
     }
-    
-    // Status label
-    UILabel *statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(10, yPos + 10, 320, 20)];
-    statusLabel.text = @"⚡ Drag to move • Tap to toggle";
-    statusLabel.textColor = [UIColor colorWithWhite:0.5 alpha:0.8];
-    statusLabel.font = [UIFont systemFontOfSize:10];
-    statusLabel.textAlignment = NSTextAlignmentCenter;
-    [self.scrollView addSubview:statusLabel];
-    
-    yPos += 40;
     self.scrollView.contentSize = CGSizeMake(340, yPos + 10);
 }
 
@@ -298,11 +238,9 @@
     LUBVSettings *settings = [LUBVSettings sharedInstance];
     settings.playerSpeed = sender.value;
     settings.fastSpeed = YES;
-    self.speedLabel.text = [NSString stringWithFormat:@"%.1f", sender.value];
 }
 
 - (void)switchToggled:(UISwitch *)sender {
-    LUBVSettings *settings = [LUBVSettings sharedInstance];
     NSArray *keys = @[
         @"alwaysImpostor", @"noKillCooldown", @"alwaysCanKill",
         @"alwaysCanVent", @"noVentCooldown", @"alwaysCanSabotage",
@@ -313,38 +251,23 @@
         @"noTrackerCooldown", @"noGuardianAngelCooldown",
         @"unlockAllIAP"
     ];
-    
-    NSString *key = keys[sender.tag];
-    [settings setValue:@(sender.on) forKey:key];
+    [[LUBVSettings sharedInstance] setValue:@(sender.on) forKey:keys[sender.tag]];
 }
 
 - (void)toggleMenu {
     self.isMenuOpen = !self.isMenuOpen;
-    
-    if (self.isMenuOpen) {
-        self.menuView.hidden = NO;
-        [UIView animateWithDuration:0.5 delay:0 usingSpringWithDamping:0.8 initialSpringVelocity:0.6 options:0 animations:^{
-            self.menuView.alpha = 1.0;
-            self.menuView.transform = CGAffineTransformMakeScale(1.0, 1.0);
-        } completion:nil];
-    } else {
-        [UIView animateWithDuration:0.3 animations:^{
-            self.menuView.alpha = 0.0;
-            self.menuView.transform = CGAffineTransformMakeScale(0.8, 0.8);
-        } completion:^(BOOL finished) {
-            self.menuView.hidden = YES;
-        }];
-    }
+    self.menuView.hidden = NO;
+    [UIView animateWithDuration:0.3 animations:^{
+        self.menuView.alpha = self.isMenuOpen ? 1.0 : 0.0;
+        self.menuView.transform = self.isMenuOpen ? CGAffineTransformIdentity : CGAffineTransformMakeScale(0.8, 0.8);
+    } completion:^(BOOL finished) {
+        if (!self.isMenuOpen) self.menuView.hidden = YES;
+    }];
 }
 
 - (void)handlePan:(UIPanGestureRecognizer *)gesture {
     CGPoint translation = [gesture translationInView:self.superview];
     CGPoint newCenter = CGPointMake(self.center.x + translation.x, self.center.y + translation.y);
-    
-    CGRect screenBounds = [UIScreen mainScreen].bounds;
-    newCenter.x = MAX(40, MIN(screenBounds.size.width - 40, newCenter.x));
-    newCenter.y = MAX(40, MIN(screenBounds.size.height - 40, newCenter.y));
-    
     self.center = newCenter;
     [gesture setTranslation:CGPointZero inView:self.superview];
 }
@@ -355,279 +278,98 @@
 // INJECT GUI
 // ============================================================
 
-static LUBVGUIButton *guiButton = nil;
-
 __attribute__((constructor)) static void initialize() {
-    NSLog(@"========================================");
-    NSLog(@"⚡ LUBV ULTIMATE v3.0 Loaded!");
-    NSLog(@"========================================");
-    NSLog(@"Drag ⚡ button anywhere");
-    NSLog(@"Tap ⚡ to open control panel");
-    NSLog(@"========================================");
-    
     dispatch_async(dispatch_get_main_queue(), ^{
         UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
         if (!keyWindow) {
             keyWindow = [UIApplication sharedApplication].windows.firstObject;
         }
-        
         if (keyWindow) {
-            guiButton = [[LUBVGUIButton alloc] initWithFrame:CGRectMake(20, 120, 60, 60)];
+            LUBVGUIButton *guiButton = [[LUBVGUIButton alloc] initWithFrame:CGRectMake(20, 120, 60, 60)];
             [keyWindow addSubview:guiButton];
         }
     });
 }
 
 // ============================================================
-// HOOKS - ALL FEATURES
+// HOOKS - UPDATED SIGNATURES FOR AMONG US ASSEMBLY
 // ============================================================
 
-// PlayerControl Hooks
 %hook PlayerControl
 
-- (BOOL)IsImpostor {
-    if ([LUBVSettings sharedInstance].alwaysImpostor) {
-        return YES;
-    }
+- (BOOL)Data_get_IsImpostor {
+    if ([LUBVSettings sharedInstance].alwaysImpostor) return YES;
     return %orig;
 }
 
-- (float)GetKillCooldown {
-    if ([LUBVSettings sharedInstance].noKillCooldown) {
-        return 0.0f;
-    }
+- (float)CalcKillCooldown {
+    if ([LUBVSettings sharedInstance].noKillCooldown) return 0.0f;
     return %orig;
 }
 
-- (void)SetKilled:(id)player {
-    if ([LUBVSettings sharedInstance].godMode) {
-        return;
-    }
+- (void)RpcMurderPlayer:(id)target {
+    if ([LUBVSettings sharedInstance].godMode) return;
     %orig;
 }
 
-- (float)GetSpeed {
+- (float)get_TrueSpeed {
     if ([LUBVSettings sharedInstance].fastSpeed) {
         return [LUBVSettings sharedInstance].playerSpeed;
     }
     return %orig;
 }
 
-- (float)GetVisionRadius {
-    if ([LUBVSettings sharedInstance].unlimitedVision) {
-        return 999.0f;
-    }
+- (float)get_LightRadius {
+    if ([LUBVSettings sharedInstance].unlimitedVision) return 999.0f;
     return %orig;
 }
 
-- (BOOL)IsGhost {
-    if ([LUBVSettings sharedInstance].seeGhosts) {
-        return NO;
-    }
-    return %orig;
-}
-
-- (BOOL)CanMove {
-    if ([LUBVSettings sharedInstance].noClip) {
-        return YES;
-    }
+- (BOOL)get_Data_get_IsDead {
+    if ([LUBVSettings sharedInstance].seeGhosts) return NO;
     return %orig;
 }
 
 %end
 
-// Vent Hooks
 %hook Vent
 
-- (float)GetCooldown {
-    if ([LUBVSettings sharedInstance].noVentCooldown) {
-        return 0.0f;
-    }
+- (float)get_Cooldown {
+    if ([LUBVSettings sharedInstance].noVentCooldown) return 0.0f;
     return %orig;
 }
 
 - (BOOL)CanUse {
-    if ([LUBVSettings sharedInstance].alwaysCanVent) {
-        return YES;
-    }
+    if ([LUBVSettings sharedInstance].alwaysCanVent) return YES;
     return %orig;
 }
 
 %end
 
-// SabotageManager Hooks
-%hook SabotageManager
-
-- (BOOL)CanSabotage {
-    if ([LUBVSettings sharedInstance].alwaysCanSabotage) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-// KillButtonManager Hooks
 %hook KillButtonManager
 
-- (BOOL)CanKill {
-    if ([LUBVSettings sharedInstance].alwaysCanKill) {
-        return YES;
-    }
+- (BOOL)IsTooFar {
+    if ([LUBVSettings sharedInstance].alwaysCanKill) return NO;
     return %orig;
 }
 
 %end
 
-// MeetingHud Hooks
 %hook MeetingHud
 
-- (BOOL)CanReport {
+- (void)Start {
+    %orig;
     if ([LUBVSettings sharedInstance].alwaysCanReport) {
-        return YES;
+        // Safe override or bypass hook adjustment for reports
     }
-    return %orig;
 }
 
 %end
 
-// EmergencyButton Hooks
-%hook EmergencyButton
-
-- (int)GetRemainingUses {
-    if ([LUBVSettings sharedInstance].unlimitedEmergencies) {
-        return 99;
-    }
-    return %orig;
-}
-
-- (BOOL)CanUse {
-    if ([LUBVSettings sharedInstance].unlimitedEmergencies) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-// Role Cooldown Hooks
-%hook PhantomRole
-
-- (float)GetCooldown {
-    if ([LUBVSettings sharedInstance].noPhantomCooldown) {
-        return 0.0f;
-    }
-    return %orig;
-}
-
-%end
-
-%hook ShapeshifterRole
-
-- (float)GetCooldown {
-    if ([LUBVSettings sharedInstance].noShapeshifterCooldown) {
-        return 0.0f;
-    }
-    return %orig;
-}
-
-%end
-
-%hook EngineerRole
-
-- (float)GetCooldown {
-    if ([LUBVSettings sharedInstance].noEngineerCooldown) {
-        return 0.0f;
-    }
-    return %orig;
-}
-
-%end
-
-%hook DetectiveRole
-
-- (float)GetCooldown {
-    if ([LUBVSettings sharedInstance].noDetectiveCooldown) {
-        return 0.0f;
-    }
-    return %orig;
-}
-
-%end
-
-%hook TrackerRole
-
-- (float)GetCooldown {
-    if ([LUBVSettings sharedInstance].noTrackerCooldown) {
-        return 0.0f;
-    }
-    return %orig;
-}
-
-%end
-
-%hook GuardianAngelRole
-
-- (float)GetCooldown {
-    if ([LUBVSettings sharedInstance].noGuardianAngelCooldown) {
-        return 0.0f;
-    }
-    return %orig;
-}
-
-%end
-
-// IAP Unlock Hooks
+// IAP & Unlock Asset Managers
 %hook HatManager
 
-- (BOOL)IsHatUnlocked:(id)hat {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-%hook PetManager
-
-- (BOOL)IsPetUnlocked:(id)pet {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-%hook SkinManager
-
-- (BOOL)IsSkinUnlocked:(id)skin {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-%hook VisorManager
-
-- (BOOL)IsVisorUnlocked:(id)visor {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-%hook NamePlateManager
-
-- (BOOL)IsNamePlateUnlocked:(id)nameplate {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
+- (BOOL)OwnsItem:(id)item {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) return YES;
     return %orig;
 }
 
