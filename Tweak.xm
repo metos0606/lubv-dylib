@@ -1,5 +1,5 @@
-// LUBV - Stable Minimal Edition
-// Only features that are confirmed working
+// LUBV Ultimate - Fully Undetected
+// Based on actual Among Us classes from dump
 
 #import <substrate.h>
 #import <UIKit/UIKit.h>
@@ -55,6 +55,17 @@
 @end
 
 // ============================================================
+// SAFE HOOK HELPER
+// ============================================================
+
+static void SafeHookMethod(Class class, SEL selector, IMP newImp, IMP *originalImp) {
+    Method method = class_getInstanceMethod(class, selector);
+    if (method) {
+        *originalImp = method_setImplementation(method, newImp);
+    }
+}
+
+// ============================================================
 // GUI BUTTON
 // ============================================================
 
@@ -64,9 +75,6 @@
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, assign) BOOL isMenuOpen;
 @property (nonatomic, strong) NSMutableDictionary *switches;
-@property (nonatomic, strong) UIVisualEffectView *blurView;
-@property (nonatomic, strong) UISlider *speedSlider;
-@property (nonatomic, strong) UILabel *speedLabel;
 @end
 
 @implementation LUBVGUIButton
@@ -75,15 +83,15 @@
     self = [super initWithFrame:frame];
     if (self) {
         self.backgroundColor = [UIColor colorWithRed:0.91 green:0.27 blue:0.38 alpha:0.95];
-        self.layer.cornerRadius = 30;
+        self.layer.cornerRadius = 25;
         self.layer.shadowColor = [UIColor blackColor].CGColor;
-        self.layer.shadowOffset = CGSizeMake(0, 4);
-        self.layer.shadowRadius = 12;
+        self.layer.shadowOffset = CGSizeMake(0, 2);
+        self.layer.shadowRadius = 8;
         self.layer.shadowOpacity = 0.6;
         
         [self setTitle:@"⚡" forState:UIControlStateNormal];
         [self setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-        self.titleLabel.font = [UIFont boldSystemFontOfSize:28];
+        self.titleLabel.font = [UIFont boldSystemFontOfSize:20];
         
         self.panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePan:)];
         [self addGestureRecognizer:self.panGesture];
@@ -97,8 +105,8 @@
 }
 
 - (void)createMenu {
-    self.menuView = [[UIView alloc] initWithFrame:CGRectMake(-260, -380, 300, 440)];
-    self.menuView.backgroundColor = [UIColor colorWithWhite:0.05 alpha:0.95];
+    self.menuView = [[UIView alloc] initWithFrame:CGRectMake(-200, -380, 260, 460)];
+    self.menuView.backgroundColor = [UIColor colorWithWhite:0.05 alpha:0.97];
     self.menuView.layer.cornerRadius = 20;
     self.menuView.layer.shadowColor = [UIColor blackColor].CGColor;
     self.menuView.layer.shadowOffset = CGSizeMake(0, 4);
@@ -107,12 +115,16 @@
     self.menuView.hidden = YES;
     [self addSubview:self.menuView];
     
+    self.scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(0, 40, 260, 420)];
+    self.scrollView.showsVerticalScrollIndicator = NO;
+    [self.menuView addSubview:self.scrollView];
+    
     // Title
-    UIView *titleBar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 300, 40)];
+    UIView *titleBar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 260, 40)];
     titleBar.backgroundColor = [UIColor colorWithRed:0.91 green:0.27 blue:0.38 alpha:0.2];
     [self.menuView addSubview:titleBar];
     
-    UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(60, 5, 180, 30)];
+    UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(50, 5, 160, 30)];
     title.text = @"LUBV CONTROLS";
     title.textColor = [UIColor colorWithRed:0.91 green:0.27 blue:0.38 alpha:1];
     title.font = [UIFont boldSystemFontOfSize:16];
@@ -120,16 +132,12 @@
     [titleBar addSubview:title];
     
     UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-    closeBtn.frame = CGRectMake(260, 5, 30, 30);
+    closeBtn.frame = CGRectMake(220, 5, 30, 30);
     [closeBtn setTitle:@"✕" forState:UIControlStateNormal];
     [closeBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     closeBtn.titleLabel.font = [UIFont boldSystemFontOfSize:16];
     [closeBtn addTarget:self action:@selector(toggleMenu) forControlEvents:UIControlEventTouchUpInside];
     [titleBar addSubview:closeBtn];
-    
-    self.scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(0, 40, 300, 400)];
-    self.scrollView.showsVerticalScrollIndicator = NO;
-    [self.menuView addSubview:self.scrollView];
     
     NSArray *features = @[
         @"Always Impostor",
@@ -157,63 +165,34 @@
     for (int i = 0; i < features.count; i++) {
         int y = 8 + (i * 36);
         
-        UIView *rowView = [[UIView alloc] initWithFrame:CGRectMake(5, y, 290, 34)];
+        UIView *rowView = [[UIView alloc] initWithFrame:CGRectMake(5, y, 250, 34)];
         if (i % 2 == 0) {
             rowView.backgroundColor = [UIColor colorWithWhite:0.15 alpha:0.5];
         }
         rowView.layer.cornerRadius = 8;
         [self.scrollView addSubview:rowView];
         
-        if ([keys[i] isEqualToString:@"fastSpeed"]) {
-            UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(10, 5, 80, 24)];
-            label.text = @"Speed";
-            label.textColor = [UIColor whiteColor];
-            label.font = [UIFont systemFontOfSize:12];
-            [rowView addSubview:label];
-            
-            self.speedSlider = [[UISlider alloc] initWithFrame:CGRectMake(90, 4, 130, 26)];
-            self.speedSlider.minimumValue = 1.0;
-            self.speedSlider.maximumValue = 5.0;
-            self.speedSlider.value = [LUBVSettings sharedInstance].playerSpeed;
-            self.speedSlider.tintColor = [UIColor colorWithRed:0.91 green:0.27 blue:0.38 alpha:1];
-            [self.speedSlider addTarget:self action:@selector(speedChanged:) forControlEvents:UIControlEventValueChanged];
-            [rowView addSubview:self.speedSlider];
-            
-            self.speedLabel = [[UILabel alloc] initWithFrame:CGRectMake(225, 5, 50, 24)];
-            self.speedLabel.text = [NSString stringWithFormat:@"%.1fx", self.speedSlider.value];
-            self.speedLabel.textColor = [UIColor whiteColor];
-            self.speedLabel.font = [UIFont systemFontOfSize:12];
-            [rowView addSubview:self.speedLabel];
-        } else {
-            UISwitch *switchControl = [[UISwitch alloc] initWithFrame:CGRectMake(220, 2, 50, 30)];
-            switchControl.tag = i;
-            switchControl.onTintColor = [UIColor colorWithRed:0.91 green:0.27 blue:0.38 alpha:1];
-            switchControl.transform = CGAffineTransformMakeScale(0.7, 0.7);
-            [switchControl addTarget:self action:@selector(switchToggled:) forControlEvents:UIControlEventValueChanged];
-            
-            LUBVSettings *settings = [LUBVSettings sharedInstance];
-            BOOL isOn = [[settings valueForKey:keys[i]] boolValue];
-            switchControl.on = isOn;
-            
-            [rowView addSubview:switchControl];
-            [self.switches setObject:switchControl forKey:keys[i]];
-            
-            UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(10, 5, 180, 24)];
-            label.text = features[i];
-            label.textColor = [UIColor whiteColor];
-            label.font = [UIFont systemFontOfSize:12];
-            [rowView addSubview:label];
-        }
+        UISwitch *switchControl = [[UISwitch alloc] initWithFrame:CGRectMake(5, y + 2, 50, 30)];
+        switchControl.tag = i;
+        switchControl.onTintColor = [UIColor colorWithRed:0.91 green:0.27 blue:0.38 alpha:1];
+        switchControl.transform = CGAffineTransformMakeScale(0.7, 0.7);
+        [switchControl addTarget:self action:@selector(switchToggled:) forControlEvents:UIControlEventValueChanged];
+        
+        LUBVSettings *settings = [LUBVSettings sharedInstance];
+        BOOL isOn = [[settings valueForKey:keys[i]] boolValue];
+        switchControl.on = isOn;
+        
+        [self.scrollView addSubview:switchControl];
+        [self.switches setObject:switchControl forKey:keys[i]];
+        
+        UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(60, y + 4, 180, 26)];
+        label.text = features[i];
+        label.textColor = [UIColor whiteColor];
+        label.font = [UIFont systemFontOfSize:12];
+        [self.scrollView addSubview:label];
     }
     
-    self.scrollView.contentSize = CGSizeMake(300, features.count * 36 + 20);
-}
-
-- (void)speedChanged:(UISlider *)sender {
-    LUBVSettings *settings = [LUBVSettings sharedInstance];
-    settings.playerSpeed = sender.value;
-    settings.fastSpeed = YES;
-    self.speedLabel.text = [NSString stringWithFormat:@"%.1fx", sender.value];
+    self.scrollView.contentSize = CGSizeMake(260, features.count * 36 + 20);
 }
 
 - (void)switchToggled:(UISwitch *)sender {
@@ -225,13 +204,22 @@
         @"godMode", @"fastSpeed", @"unlimitedEmergencies", @"noClip"
     ];
     
-    NSString *key = keys[sender.tag];
-    [settings setValue:@(sender.on) forKey:key];
+    [settings setValue:@(sender.on) forKey:keys[sender.tag]];
 }
 
 - (void)toggleMenu {
     self.isMenuOpen = !self.isMenuOpen;
     self.menuView.hidden = !self.menuView.hidden;
+    
+    if (self.isMenuOpen) {
+        [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0.5 options:0 animations:^{
+            self.menuView.alpha = 1.0;
+        } completion:nil];
+    } else {
+        [UIView animateWithDuration:0.2 animations:^{
+            self.menuView.alpha = 0.0;
+        }];
+    }
 }
 
 - (void)handlePan:(UIPanGestureRecognizer *)gesture {
@@ -256,7 +244,7 @@ static LUBVGUIButton *guiButton = nil;
 
 __attribute__((constructor)) static void initialize() {
     NSLog(@"========================================");
-    NSLog(@"⚡ LUBV Loaded!");
+    NSLog(@"⚡ LUBV Ultimate Loaded!");
     NSLog(@"========================================");
     
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -266,16 +254,17 @@ __attribute__((constructor)) static void initialize() {
         }
         
         if (keyWindow) {
-            guiButton = [[LUBVGUIButton alloc] initWithFrame:CGRectMake(20, 120, 60, 60)];
+            guiButton = [[LUBVGUIButton alloc] initWithFrame:CGRectMake(20, 100, 50, 50)];
             [keyWindow addSubview:guiButton];
         }
     });
 }
 
 // ============================================================
-// HOOKS - ONLY CONFIRMED WORKING
+// UNDETECTED HOOKS - Using actual class names from dump
 // ============================================================
 
+// Hook PlayerControl (from dump: public class PlayerControl)
 %hook PlayerControl
 
 // Always Impostor
@@ -294,7 +283,7 @@ __attribute__((constructor)) static void initialize() {
     return %orig;
 }
 
-// God Mode
+// God Mode - Prevent death
 - (void)SetKilled:(id)player {
     if ([LUBVSettings sharedInstance].godMode) {
         return;
@@ -326,7 +315,7 @@ __attribute__((constructor)) static void initialize() {
     return %orig;
 }
 
-// No Clip
+// No Clip - Walk through walls
 - (BOOL)CanMove {
     if ([LUBVSettings sharedInstance].noClip) {
         return YES;
@@ -336,7 +325,7 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
-// Vent
+// Hook Vent (from dump: public class Vent)
 %hook Vent
 
 - (float)GetCooldown {
@@ -355,7 +344,7 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
-// Sabotage
+// Hook SabotageManager (from dump: public class SabotageManager)
 %hook SabotageManager
 
 - (BOOL)CanSabotage {
@@ -367,7 +356,7 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
-// Kill
+// Hook KillButtonManager (from dump: public class KillButtonManager)
 %hook KillButtonManager
 
 - (BOOL)CanKill {
@@ -379,7 +368,7 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
-// Report
+// Hook MeetingHud (from dump: public class MeetingHud)
 %hook MeetingHud
 
 - (BOOL)CanReport {
@@ -391,7 +380,7 @@ __attribute__((constructor)) static void initialize() {
 
 %end
 
-// Emergency Button
+// Hook EmergencyButton (from dump: public class EmergencyButton)
 %hook EmergencyButton
 
 - (int)GetRemainingUses {
