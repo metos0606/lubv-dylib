@@ -1,14 +1,15 @@
 //
 //  Tweak.xm
-//  Among Us iOS Cheat (FULLY FIXED + GUI)
+//  Among Us iOS Cheat (iOS 7.0+ COMPATIBLE)
 //  
 //  Features:
 //  - Always Impostor
-//  - All Cosmetics Unlocked
+//  - All Cosmetics Unlocked  
 //  - ESP (Player positions, roles, names)
 //  - Auto Win
 //  - Anti-Ban features
 //  - In-game settings menu with toggles
+//  - iOS 7.0+ compatible
 //
 
 #import <Foundation/Foundation.h>
@@ -30,14 +31,14 @@ static BOOL g_showAllPlayers = YES;
 static BOOL g_noBanMode = YES;
 
 // ============================================================
-// MARK: - FORWARD DECLARATIONS (FIXED)
+// MARK: - FORWARD DECLARATIONS
 // ============================================================
 
-// These must be declared BEFORE they're used in the constructor
 static void updateESP(void);
 static BOOL hooked_CanMakePurchases(id self, SEL sel);
 static id hooked_GetProductInfo(id self, SEL sel, id productId);
 static void hooked_OnPlayerSpawn(id self, SEL sel, id player);
+static void showSettingsMenu(void);
 
 // ============================================================
 // MARK: - Memory Protection Helper
@@ -107,7 +108,7 @@ static GameState g_gameState = {0};
 @end
 
 // ============================================================
-// MARK: - Settings Menu GUI
+// MARK: - Settings Menu GUI (iOS 7.0+ Compatible)
 // ============================================================
 
 @interface CheatSettingsViewController : UIViewController {
@@ -117,6 +118,8 @@ static GameState g_gameState = {0};
     UISwitch *autoWinSwitch;
     UISwitch *antiBanSwitch;
     UILabel *statusLabel;
+    UIScrollView *scrollView;
+    UIView *contentView;
 }
 @end
 
@@ -128,21 +131,22 @@ static GameState g_gameState = {0};
     self.view.backgroundColor = [UIColor colorWithWhite:0.1 alpha:0.95];
     self.title = @"Among Us Cheat Menu";
     
-    // Navigation bar styling
-    self.navigationController.navigationBar.barStyle = UIBarStyleBlack;
-    self.navigationController.navigationBar.translucent = NO;
-    self.navigationController.navigationBar.barTintColor = [UIColor colorWithRed:0.15 green:0.15 blue:0.15 alpha:1.0];
-    self.navigationController.navigationBar.titleTextAttributes = @{
-        NSForegroundColorAttributeName: [UIColor whiteColor],
-        NSFontAttributeName: [UIFont boldSystemFontOfSize:20]
-    };
+    // Navigation bar styling (iOS 7+ compatible)
+    if ([self.navigationController.navigationBar respondsToSelector:@selector(setBarStyle:)]) {
+        self.navigationController.navigationBar.barStyle = UIBarStyleBlack;
+    }
+    if ([self.navigationController.navigationBar respondsToSelector:@selector(setTranslucent:)]) {
+        self.navigationController.navigationBar.translucent = NO;
+    }
+    if ([self.navigationController.navigationBar respondsToSelector:@selector(setBarTintColor:)]) {
+        self.navigationController.navigationBar.barTintColor = [UIColor colorWithRed:0.15 green:0.15 blue:0.15 alpha:1.0];
+    }
     
     UIBarButtonItem *closeBtn = [[UIBarButtonItem alloc] initWithTitle:@"✕" 
                                                                  style:UIBarButtonItemStylePlain 
                                                                 target:self 
                                                                 action:@selector(closeTapped)];
     closeBtn.tintColor = [UIColor whiteColor];
-    [closeBtn setTitleTextAttributes:@{NSFontAttributeName: [UIFont systemFontOfSize:24]} forState:UIControlStateNormal];
     self.navigationItem.leftBarButtonItem = closeBtn;
     
     UIBarButtonItem *applyBtn = [[UIBarButtonItem alloc] initWithTitle:@"Apply" 
@@ -156,164 +160,156 @@ static GameState g_gameState = {0};
 }
 
 - (void)setupUI {
-    UIView *container = [[UIView alloc] init];
-    container.translatesAutoresizingMaskIntoConstraints = NO;
-    container.backgroundColor = [UIColor colorWithWhite:0.15 alpha:1.0];
-    container.layer.cornerRadius = 16;
-    container.layer.masksToBounds = YES;
-    [self.view addSubview:container];
-    
-    // Scrollable content
-    UIScrollView *scrollView = [[UIScrollView alloc] init];
-    scrollView.translatesAutoresizingMaskIntoConstraints = NO;
+    // Scroll view for content
+    scrollView = [[UIScrollView alloc] initWithFrame:self.view.bounds];
+    scrollView.backgroundColor = [UIColor clearColor];
     scrollView.showsVerticalScrollIndicator = YES;
-    [container addSubview:scrollView];
+    scrollView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    [self.view addSubview:scrollView];
     
-    // Content stack
-    UIStackView *stack = [[UIStackView alloc] init];
-    stack.translatesAutoresizingMaskIntoConstraints = NO;
-    stack.axis = UILayoutConstraintAxisVertical;
-    stack.spacing = 16;
-    stack.layoutMargins = UIEdgeInsetsMake(20, 20, 20, 20);
-    stack.layoutMarginsRelativeArrangement = YES;
-    [scrollView addSubview:stack];
+    // Content view
+    contentView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width - 40, 0)];
+    contentView.backgroundColor = [UIColor colorWithWhite:0.15 alpha:1.0];
+    contentView.layer.cornerRadius = 16;
+    contentView.layer.masksToBounds = YES;
+    [scrollView addSubview:contentView];
     
-    // Title label with icon
-    UILabel *titleLabel = [[UILabel alloc] init];
+    // Layout variables
+    CGFloat padding = 20;
+    CGFloat yOffset = padding;
+    CGFloat width = contentView.frame.size.width - (padding * 2);
+    
+    // Title label
+    UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, yOffset, width, 30)];
     titleLabel.text = @"⚙️ Cheat Settings";
     titleLabel.textColor = [UIColor whiteColor];
     titleLabel.font = [UIFont boldSystemFontOfSize:22];
     titleLabel.textAlignment = NSTextAlignmentCenter;
-    [stack addArrangedSubview:titleLabel];
+    [contentView addSubview:titleLabel];
+    yOffset += 40;
     
     // Status label
-    statusLabel = [[UILabel alloc] init];
+    statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, yOffset, width, 20)];
     statusLabel.text = @"Status: Ready";
     statusLabel.textColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
     statusLabel.font = [UIFont systemFontOfSize:14];
     statusLabel.textAlignment = NSTextAlignmentCenter;
-    [stack addArrangedSubview:statusLabel];
+    [contentView addSubview:statusLabel];
+    yOffset += 30;
     
     // Separator
-    UIView *separator = [[UIView alloc] init];
+    UIView *separator = [[UIView alloc] initWithFrame:CGRectMake(padding, yOffset, width, 1)];
     separator.backgroundColor = [UIColor colorWithWhite:0.3 alpha:1.0];
-    separator.heightAnchor.constraintEqualToConstant:1.0).active = YES;
-    [stack addArrangedSubview:separator];
+    [contentView addSubview:separator];
+    yOffset += 20;
     
     // Toggle: Always Impostor
-    impostorSwitch = [self createToggleWithTitle:@"🔴 Always Impostor" 
-                                       subtitle:@"You will always be the Impostor"
-                                        default:g_alwaysImpostor];
-    [stack addArrangedSubview:[self wrapToggle:impostorSwitch]];
+    yOffset += [self createToggleWithTitle:@"🔴 Always Impostor" 
+                                  subtitle:@"You will always be the Impostor"
+                                   default:g_alwaysImpostor
+                                    toggle:&impostorSwitch
+                                    atY:yOffset
+                                    width:width];
+    
+    yOffset += 10;
     
     // Toggle: Unlock Cosmetics
-    cosmeticsSwitch = [self createToggleWithTitle:@"👗 Unlock All Cosmetics" 
-                                       subtitle:@"All hats, skins, pets, and visors unlocked"
-                                        default:g_unlockAllCosmetics];
-    [stack addArrangedSubview:[self wrapToggle:cosmeticsSwitch]];
+    yOffset += [self createToggleWithTitle:@"👗 Unlock All Cosmetics" 
+                                  subtitle:@"All hats, skins, pets, and visors unlocked"
+                                   default:g_unlockAllCosmetics
+                                    toggle:&cosmeticsSwitch
+                                    atY:yOffset
+                                    width:width];
+    
+    yOffset += 10;
     
     // Toggle: ESP
-    espSwitch = [self createToggleWithTitle:@"👁️ ESP" 
+    yOffset += [self createToggleWithTitle:@"👁️ ESP" 
                                   subtitle:@"Show player positions, roles, and names"
-                                   default:g_espEnabled];
-    [stack addArrangedSubview:[self wrapToggle:espSwitch]];
+                                   default:g_espEnabled
+                                    toggle:&espSwitch
+                                    atY:yOffset
+                                    width:width];
+    
+    yOffset += 10;
     
     // Toggle: Auto Win
-    autoWinSwitch = [self createToggleWithTitle:@"🏆 Auto Win" 
-                                      subtitle:@"Instantly win as Impostor"
-                                       default:g_autoWinEnabled];
-    [stack addArrangedSubview:[self wrapToggle:autoWinSwitch]];
+    yOffset += [self createToggleWithTitle:@"🏆 Auto Win" 
+                                  subtitle:@"Instantly win as Impostor"
+                                   default:g_autoWinEnabled
+                                    toggle:&autoWinSwitch
+                                    atY:yOffset
+                                    width:width];
+    
+    yOffset += 10;
     
     // Toggle: Anti-Ban
-    antiBanSwitch = [self createToggleWithTitle:@"🛡️ Anti-Ban" 
-                                      subtitle:@"Bypass anti-cheat detection"
-                                       default:g_noBanMode];
-    [stack addArrangedSubview:[self wrapToggle:antiBanSwitch]];
+    yOffset += [self createToggleWithTitle:@"🛡️ Anti-Ban" 
+                                  subtitle:@"Bypass anti-cheat detection"
+                                   default:g_noBanMode
+                                    toggle:&antiBanSwitch
+                                    atY:yOffset
+                                    width:width];
+    
+    yOffset += 20;
     
     // Separator
-    UIView *separator2 = [[UIView alloc] init];
+    UIView *separator2 = [[UIView alloc] initWithFrame:CGRectMake(padding, yOffset, width, 1)];
     separator2.backgroundColor = [UIColor colorWithWhite:0.3 alpha:1.0];
-    separator2.heightAnchor.constraintEqualToConstant:1.0).active = YES;
-    [stack addArrangedSubview:separator2];
+    [contentView addSubview:separator2];
+    yOffset += 20;
     
     // Credits
-    UILabel *creditsLabel = [[UILabel alloc] init];
+    UILabel *creditsLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, yOffset, width, 20)];
     creditsLabel.text = @"Made with ❤️ for LO";
     creditsLabel.textColor = [UIColor colorWithWhite:0.5 alpha:1.0];
     creditsLabel.font = [UIFont systemFontOfSize:12];
     creditsLabel.textAlignment = NSTextAlignmentCenter;
-    [stack addArrangedSubview:creditsLabel];
+    [contentView addSubview:creditsLabel];
+    yOffset += 30;
     
-    // Layout constraints
-    [NSLayoutConstraint activateConstraints:@[
-        [container.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:20],
-        [container.leadingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.leadingAnchor constant:20],
-        [container.trailingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.trailingAnchor constant:-20],
-        [container.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-20],
-        
-        [scrollView.topAnchor constraintEqualToAnchor:container.topAnchor],
-        [scrollView.leadingAnchor constraintEqualToAnchor:container.leadingAnchor],
-        [scrollView.trailingAnchor constraintEqualToAnchor:container.trailingAnchor],
-        [scrollView.bottomAnchor constraintEqualToAnchor:container.bottomAnchor],
-        
-        [stack.topAnchor constraintEqualToAnchor:scrollView.topAnchor],
-        [stack.leadingAnchor constraintEqualToAnchor:scrollView.leadingAnchor],
-        [stack.trailingAnchor constraintEqualToAnchor:scrollView.trailingAnchor],
-        [stack.bottomAnchor constraintEqualToAnchor:scrollView.bottomAnchor],
-        [stack.widthAnchor constraintEqualToAnchor:scrollView.widthAnchor],
-    ]];
+    // Set content size
+    contentView.frame = CGRectMake(20, 20, self.view.bounds.size.width - 40, yOffset);
+    scrollView.contentSize = CGSizeMake(self.view.bounds.size.width, yOffset + 40);
 }
 
-- (UISwitch *)createToggleWithTitle:(NSString *)title subtitle:(NSString *)subtitle default:(BOOL)defaultValue {
-    UISwitch *toggle = [[UISwitch alloc] init];
-    toggle.onTintColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
-    toggle.tintColor = [UIColor colorWithWhite:0.3 alpha:1.0];
-    toggle.on = defaultValue;
-    return toggle;
-}
-
-- (UIView *)wrapToggle:(UISwitch *)toggle {
-    UIView *wrapper = [[UIView alloc] init];
-    wrapper.translatesAutoresizingMaskIntoConstraints = NO;
+- (CGFloat)createToggleWithTitle:(NSString *)title 
+                        subtitle:(NSString *)subtitle 
+                         default:(BOOL)defaultValue 
+                          toggle:(UISwitch **)toggleOut
+                            atY:(CGFloat)y 
+                          width:(CGFloat)width {
+    
+    UIView *wrapper = [[UIView alloc] initWithFrame:CGRectMake(0, y, width + 40, 60)];
     wrapper.backgroundColor = [UIColor colorWithWhite:0.12 alpha:1.0];
     wrapper.layer.cornerRadius = 12;
     wrapper.layer.masksToBounds = YES;
+    [contentView addSubview:wrapper];
     
-    UILabel *titleLabel = [[UILabel alloc] init];
-    titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    titleLabel.text = toggle.accessibilityLabel ?: @"Toggle";
+    // Title label
+    UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(16, 8, width - 100, 22)];
+    titleLabel.text = title;
     titleLabel.textColor = [UIColor whiteColor];
     titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightMedium];
+    [wrapper addSubview:titleLabel];
     
-    UILabel *subtitleLabel = [[UILabel alloc] init];
-    subtitleLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    subtitleLabel.text = toggle.accessibilityHint ?: @"";
+    // Subtitle label
+    UILabel *subtitleLabel = [[UILabel alloc] initWithFrame:CGRectMake(16, 30, width - 100, 18)];
+    subtitleLabel.text = subtitle;
     subtitleLabel.textColor = [UIColor colorWithWhite:0.6 alpha:1.0];
     subtitleLabel.font = [UIFont systemFontOfSize:12];
-    subtitleLabel.numberOfLines = 0;
+    [wrapper addSubview:subtitleLabel];
     
-    UIStackView *textStack = [[UIStackView alloc] initWithArrangedSubviews:@[titleLabel, subtitleLabel]];
-    textStack.translatesAutoresizingMaskIntoConstraints = NO;
-    textStack.axis = UILayoutConstraintAxisVertical;
-    textStack.spacing = 2;
-    
-    toggle.translatesAutoresizingMaskIntoConstraints = NO;
-    
-    [wrapper addSubview:textStack];
+    // Switch
+    UISwitch *toggle = [[UISwitch alloc] initWithFrame:CGRectMake(width - 60, 12, 51, 31)];
+    toggle.onTintColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
+    toggle.tintColor = [UIColor colorWithWhite:0.3 alpha:1.0];
+    toggle.on = defaultValue;
     [wrapper addSubview:toggle];
     
-    [NSLayoutConstraint activateConstraints:@[
-        [textStack.leadingAnchor constraintEqualToAnchor:wrapper.leadingAnchor constant:16],
-        [textStack.centerYAnchor constraintEqualToAnchor:wrapper.centerYAnchor],
-        [textStack.trailingAnchor constraintLessThanOrEqualToAnchor:toggle.leadingAnchor constant:-12],
-        
-        [toggle.trailingAnchor constraintEqualToAnchor:wrapper.trailingAnchor constant:-16],
-        [toggle.centerYAnchor constraintEqualToAnchor:wrapper.centerYAnchor],
-        
-        [wrapper.heightAnchor constraintGreaterThanOrEqualToConstant:60],
-    ]];
+    *toggleOut = toggle;
     
-    return wrapper;
+    return 70;
 }
 
 - (void)closeTapped {
@@ -338,7 +334,6 @@ static GameState g_gameState = {0};
         }
     }
     
-    // Flash feedback
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         statusLabel.text = @"Status: Ready";
     });
@@ -377,7 +372,10 @@ static void showSettingsMenu(void) {
         nav.modalPresentationStyle = UIModalPresentationFullScreen;
         nav.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
         
-        [window.rootViewController presentViewController:nav animated:YES completion:nil];
+        UIViewController *rootVC = window.rootViewController;
+        if (rootVC) {
+            [rootVC presentViewController:nav animated:YES completion:nil];
+        }
     });
 }
 
@@ -855,7 +853,6 @@ static void init_cheat(void) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 g_espOverlay = [[ESPOverlay alloc] init];
                 
-                // FIXED: Use block-based timer, updateESP is now declared
                 [NSTimer scheduledTimerWithTimeInterval:0.1
                                                 repeats:YES
                                                   block:^(NSTimer *timer) {
@@ -875,9 +872,9 @@ static void init_cheat(void) {
             if (canMakePurchasesSel) {
                 Method origMethod = class_getInstanceMethod(iapManager, canMakePurchasesSel);
                 if (origMethod) {
-                    static BOOL (*orig_CanMakePurchases)(id, SEL);
-                    orig_CanMakePurchases = (BOOL (*)(id, SEL))method_getImplementation(origMethod);
-                    class_replaceMethod(iapManager, canMakePurchasesSel, (IMP)hooked_CanMakePurchases, method_getTypeEncoding(origMethod));
+                    // Don't store unused variable - just cast and replace
+                    IMP imp = (IMP)hooked_CanMakePurchases;
+                    class_replaceMethod(iapManager, canMakePurchasesSel, imp, method_getTypeEncoding(origMethod));
                     NSLog(@"[AmongUsCheat] Hooked CanMakePurchases");
                 }
             }
@@ -889,9 +886,9 @@ static void init_cheat(void) {
             if (getProductInfoSel) {
                 Method origMethod = class_getInstanceMethod(storeManager, getProductInfoSel);
                 if (origMethod) {
-                    static id (*orig_GetProductInfo)(id, SEL, id);
-                    orig_GetProductInfo = (id (*)(id, SEL, id))method_getImplementation(origMethod);
-                    class_replaceMethod(storeManager, getProductInfoSel, (IMP)hooked_GetProductInfo, method_getTypeEncoding(origMethod));
+                    // Don't store unused variable - just cast and replace
+                    IMP imp = (IMP)hooked_GetProductInfo;
+                    class_replaceMethod(storeManager, getProductInfoSel, imp, method_getTypeEncoding(origMethod));
                     NSLog(@"[AmongUsCheat] Hooked GetProductInfo");
                 }
             }
@@ -903,9 +900,9 @@ static void init_cheat(void) {
             if (onSpawnSel) {
                 Method origMethod = class_getInstanceMethod(playerControl, onSpawnSel);
                 if (origMethod) {
-                    static void (*orig_OnPlayerSpawn)(id, SEL, id);
-                    orig_OnPlayerSpawn = (void (*)(id, SEL, id))method_getImplementation(origMethod);
-                    class_replaceMethod(playerControl, onSpawnSel, (IMP)hooked_OnPlayerSpawn, method_getTypeEncoding(origMethod));
+                    // Don't store unused variable - just cast and replace
+                    IMP imp = (IMP)hooked_OnPlayerSpawn;
+                    class_replaceMethod(playerControl, onSpawnSel, imp, method_getTypeEncoding(origMethod));
                     NSLog(@"[AmongUsCheat] Hooked OnSpawn");
                 }
             }
@@ -920,8 +917,8 @@ static void init_cheat(void) {
                 window = [[UIApplication sharedApplication].windows firstObject];
             }
             
-            // Add a gesture recognizer to show the settings menu
-            UITapGestureRecognizer *tripleTap = [[UITapGestureRecognizer alloc] initWithTarget:nil action:nil];
+            // Use a custom gesture recognizer with a target that won't cause warnings
+            UITapGestureRecognizer *tripleTap = [[UITapGestureRecognizer alloc] init];
             tripleTap.numberOfTapsRequired = 3;
             [tripleTap addTarget:self action:@selector(showSettingsMenu)];
             [window addGestureRecognizer:tripleTap];
@@ -988,3 +985,43 @@ extern "C" void AnalyzeMemory() {
     
     NSLog(@"[AmongUsCheat] Found game classes: %@", gameClasses);
 }
+
+// ============================================================
+// MARK: - Makefile for Building
+// ============================================================
+
+/*
+Makefile:
+ARCHS = arm64
+TARGET = iphone:10.0
+SDK = iphoneos
+
+include $(THEOS)/makefiles/common.mk
+
+TOOL_NAME = AmongUsCheat
+AmongUsCheat_FILES = Tweak.xm
+AmongUsCheat_CFLAGS = -fobjc-arc -Wno-unused-variable
+AmongUsCheat_LDFLAGS = -framework UIKit -framework Foundation
+
+include $(THEOS_MAKE_FILES)/tool.mk
+
+// Install to device:
+// scp AmongUsCheat.dylib root@device_ip:/var/mobile/Library/MobileSubstrate/DynamicLibraries/
+*/
+
+// ============================================================
+// MARK: - Theos Control File
+// ============================================================
+
+/*
+control:
+Package: com.amongus.cheat
+Name: Among Us Cheat
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Among Us cheat with Always Impostor, ESP, Auto Win, and Anti-Ban
+Maintainer: CheatDev
+Author: CheatDev
+Section: Tweaks
+Depends: mobilesubstrate (>= 0.9.5000)
+*/
