@@ -1,9 +1,9 @@
 // LUBV Ultimate - In-Game GUI Control
 // For injection with E-sign
 
-#include <substrate.h>
-#include <UIKit/UIKit.h>
-#include <objc/runtime.h>
+#import <substrate.h>
+#import <UIKit/UIKit.h>
+#import <objc/runtime.h>
 
 // ============================================================
 // SETTINGS MANAGER
