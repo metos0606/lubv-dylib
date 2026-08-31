@@ -1,8 +1,9 @@
-Package: com.lubv.ultimate
-Name: LUBV Ultimate
-Version: 2.0
+Package: com.yourname.lubv
+Name: LUBV
+Version: 1.0.0
 Architecture: iphoneos-arm
-Description: Ultimate Among Us Mod with GUI
-Maintainer: LUBV
-Author: LUBV
+Description: Among Us tweak
+Maintainer: Your Name
+Author: Your Name
 Section: Tweaks
+Depends: mobilesubstrate (>= 0.9.5000)
