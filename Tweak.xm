@@ -860,12 +860,6 @@ static void init_cheat(void) {
         // ============================================================
         // Add gesture to show settings menu (triple tap on screen)
         // ============================================================
-        dispatch_async(dispatch_get_main_queue(), ^{
-            UIWindow *window = [UIApplication sharedApplication].keyWindow;
-            if (!window) {
-                window = [[UIApplication sharedApplication].windows firstObject];
-            }
-            
         // ============================================================
         // Add gesture to show settings menu (triple tap on screen)
         // ============================================================
@@ -887,10 +881,6 @@ static void init_cheat(void) {
             
             NSLog(@"[AmongUsCheat] Triple-tap gesture added to show settings menu");
         });
- 
-        
-        [window addGestureRecognizer:tripleTap];
-        NSLog(@"[AmongUsCheat] Triple-tap gesture added to show settings menu");
         
         NSLog(@"[AmongUsCheat] Injection complete!");
         NSLog(@"[AmongUsCheat] Features: AlwaysImpostor=%@, Cosmetics=%@, ESP=%@, AutoWin=%@, AntiBan=%@",
@@ -899,8 +889,9 @@ static void init_cheat(void) {
               g_espEnabled ? @"ON" : @"OFF",
               g_autoWinEnabled ? @"ON" : @"OFF",
               g_noBanMode ? @"ON" : @"OFF");
-    });
-}
+        });  // Closing brace for the dispatch_after from line 675
+        }   // Closing brace for init_cheat()
+        }
 
 // ============================================================
 // MARK: - Command Handling (for debugging)
