@@ -39,8 +39,8 @@ static UIWindow *g_cheatWindow = nil;
 static void updateESP(void);
 static void showCheatMenu(void);
 static void hideCheatMenu(void);
-static void buttonTapped(void);
 static void createFloatingButton(void);
+static void setupTripleTap(void);
 
 // ============================================================
 // MARK: - Class References from Dump
@@ -103,6 +103,60 @@ static void createFloatingButton(void);
 + (InnerNetClient *)Instance;
 - (void)SendRpc;
 @property (nonatomic, assign) int ClientId;
+@end
+
+// ============================================================
+// MARK: - Button Action Handler
+// ============================================================
+
+@interface ButtonActionHandler : NSObject
++ (void)buttonTapped:(id)sender;
++ (void)handlePan:(UIPanGestureRecognizer *)gesture;
++ (void)handleTripleTap:(UITapGestureRecognizer *)gesture;
+@end
+
+@implementation ButtonActionHandler
+
++ (void)buttonTapped:(id)sender {
+    [UIView animateWithDuration:0.15 animations:^{
+        g_floatingButton.transform = CGAffineTransformMakeScale(0.7, 0.7);
+        g_floatingButton.alpha = 0.7;
+    } completion:^(BOOL finished) {
+        [UIView animateWithDuration:0.25 delay:0 usingSpringWithDamping:0.5 initialSpringVelocity:0.5 options:0 animations:^{
+            g_floatingButton.transform = CGAffineTransformIdentity;
+            g_floatingButton.alpha = 1;
+        } completion:^(BOOL finished) {
+            showCheatMenu();
+        }];
+    }];
+}
+
++ (void)handlePan:(UIPanGestureRecognizer *)gesture {
+    UIButton *btn = (UIButton *)gesture.view;
+    CGPoint translation = [gesture translationInView:btn.superview];
+    
+    if (gesture.state == UIGestureRecognizerStateChanged) {
+        CGRect newFrame = btn.frame;
+        newFrame.origin.x += translation.x;
+        newFrame.origin.y += translation.y;
+        
+        CGFloat margin = 10;
+        newFrame.origin.x = MAX(margin, MIN(newFrame.origin.x, btn.superview.bounds.size.width - newFrame.size.width - margin));
+        newFrame.origin.y = MAX(margin, MIN(newFrame.origin.y, btn.superview.bounds.size.height - newFrame.size.height - margin));
+        
+        btn.frame = newFrame;
+        [gesture setTranslation:CGPointZero inView:btn.superview];
+    }
+}
+
++ (void)handleTripleTap:(UITapGestureRecognizer *)gesture {
+    if (g_cheatWindow && !g_cheatWindow.hidden) {
+        hideCheatMenu();
+    } else {
+        showCheatMenu();
+    }
+}
+
 @end
 
 // ============================================================
@@ -492,45 +546,19 @@ static void hideCheatMenu(void) {
 // MARK: - Floating Button
 // ============================================================
 
-static void buttonTapped(void) {
-    [UIView animateWithDuration:0.15 animations:^{
-        g_floatingButton.transform = CGAffineTransformMakeScale(0.7, 0.7);
-        g_floatingButton.alpha = 0.7;
-    } completion:^(BOOL finished) {
-        [UIView animateWithDuration:0.25 delay:0 usingSpringWithDamping:0.5 initialSpringVelocity:0.5 options:0 animations:^{
-            g_floatingButton.transform = CGAffineTransformIdentity;
-            g_floatingButton.alpha = 1;
-        } completion:^(BOOL finished) {
-            showCheatMenu();
-        }];
-    }];
-}
-
-static void handleDrag(UIPanGestureRecognizer *gesture) {
-    UIButton *btn = (UIButton *)gesture.view;
-    CGPoint translation = [gesture translationInView:btn.superview];
-    
-    if (gesture.state == UIGestureRecognizerStateChanged) {
-        CGRect newFrame = btn.frame;
-        newFrame.origin.x += translation.x;
-        newFrame.origin.y += translation.y;
-        
-        CGFloat margin = 10;
-        newFrame.origin.x = MAX(margin, MIN(newFrame.origin.x, btn.superview.bounds.size.width - newFrame.size.width - margin));
-        newFrame.origin.y = MAX(margin, MIN(newFrame.origin.y, btn.superview.bounds.size.height - newFrame.size.height - margin));
-        
-        btn.frame = newFrame;
-        [gesture setTranslation:CGPointZero inView:btn.superview];
-    }
-}
-
 static void createFloatingButton(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         UIWindow *window = [UIApplication sharedApplication].keyWindow;
         if (!window) {
             window = [[UIApplication sharedApplication].windows firstObject];
         }
-        if (!window) return;
+        if (!window) {
+            // Fallback: create a new window
+            window = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
+            window.windowLevel = UIWindowLevelNormal;
+            window.hidden = NO;
+            [window makeKeyAndVisible];
+        }
         
         if (g_floatingButton) {
             [g_floatingButton removeFromSuperview];
@@ -563,6 +591,7 @@ static void createFloatingButton(void) {
         g_floatingButton.layer.shadowRadius = 12;
         g_floatingButton.layer.borderWidth = 2;
         g_floatingButton.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.3].CGColor;
+        g_floatingButton.clipsToBounds = YES;
         
         // Icon with emoji
         UILabel *iconLabel = [[UILabel alloc] initWithFrame:g_floatingButton.bounds];
@@ -572,15 +601,15 @@ static void createFloatingButton(void) {
         iconLabel.userInteractionEnabled = NO;
         [g_floatingButton addSubview:iconLabel];
         
-        // Button action using block
-        [g_floatingButton addTarget:(id)^(id sender) {
-            buttonTapped();
-        } action:@selector(invoke) forControlEvents:UIControlEventTouchUpInside];
+        // FIX: Use proper target-action, not blocks
+        [g_floatingButton addTarget:[ButtonActionHandler class] 
+                             action:@selector(buttonTapped:) 
+                   forControlEvents:UIControlEventTouchUpInside];
         
-        // Drag gesture
-        UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:(id)^(UIPanGestureRecognizer *gesture) {
-            handleDrag(gesture);
-        } action:@selector(invoke)];
+        // Drag gesture - FIX: Use proper target-action
+        UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] 
+                                        initWithTarget:[ButtonActionHandler class] 
+                                        action:@selector(handlePan:)];
         [g_floatingButton addGestureRecognizer:pan];
         
         [window addSubview:g_floatingButton];
@@ -610,12 +639,39 @@ static void createFloatingButton(void) {
 // MARK: - Triple Tap Gesture Handler
 // ============================================================
 
-static void handleTripleTap(UIGestureRecognizer *gesture) {
-    if (g_cheatWindow && !g_cheatWindow.hidden) {
-        hideCheatMenu();
-    } else {
-        showCheatMenu();
-    }
+static void setupTripleTap(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow *window = [UIApplication sharedApplication].keyWindow;
+        if (!window) {
+            window = [[UIApplication sharedApplication].windows firstObject];
+        }
+        
+        if (!window) {
+            // Create a hidden window if needed
+            window = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
+            window.windowLevel = UIWindowLevelNormal;
+            window.hidden = NO;
+            [window makeKeyAndVisible];
+        }
+        
+        // Remove existing triple tap gestures
+        NSArray *gestures = [window.gestureRecognizers copy];
+        for (UIGestureRecognizer *gesture in gestures) {
+            if ([gesture isKindOfClass:[UITapGestureRecognizer class]] && 
+                ((UITapGestureRecognizer *)gesture).numberOfTapsRequired == 3) {
+                [window removeGestureRecognizer:gesture];
+            }
+        }
+        
+        // FIX: Use proper target-action
+        UITapGestureRecognizer *tripleTap = [[UITapGestureRecognizer alloc] 
+                                              initWithTarget:[ButtonActionHandler class] 
+                                              action:@selector(handleTripleTap:)];
+        tripleTap.numberOfTapsRequired = 3;
+        [window addGestureRecognizer:tripleTap];
+        
+        NSLog(@"[AmongUsCheat] ✅ Triple-tap gesture added");
+    });
 }
 
 // ============================================================
@@ -1138,31 +1194,9 @@ static void init_cheat(void) {
         createFloatingButton();
         
         // ============================================================
-        // Setup Triple Tap
+        // Setup Triple Tap (FIXED)
         // ============================================================
-        UIWindow *window = [UIApplication sharedApplication].keyWindow;
-        if (!window) {
-            window = [[UIApplication sharedApplication].windows firstObject];
-        }
-        
-        if (window) {
-            // Remove existing triple tap
-            NSArray *gestures = [window.gestureRecognizers copy];
-            for (UIGestureRecognizer *gesture in gestures) {
-                if ([gesture isKindOfClass:[UITapGestureRecognizer class]] && 
-                    ((UITapGestureRecognizer *)gesture).numberOfTapsRequired == 3) {
-                    [window removeGestureRecognizer:gesture];
-                }
-            }
-            
-            UITapGestureRecognizer *tripleTap = [[UITapGestureRecognizer alloc] initWithTarget:(id)^(UITapGestureRecognizer *recognizer) {
-                handleTripleTap(recognizer);
-            } action:@selector(invoke)];
-            tripleTap.numberOfTapsRequired = 3;
-            [window addGestureRecognizer:tripleTap];
-            
-            NSLog(@"[AmongUsCheat] ✅ Triple-tap gesture added");
-        }
+        setupTripleTap();
         
         NSLog(@"[AmongUsCheat] 🎉 Injection complete!");
         NSLog(@"[AmongUsCheat] Features:");
