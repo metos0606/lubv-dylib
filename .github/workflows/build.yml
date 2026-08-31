@@ -21,10 +21,19 @@ jobs:
       - name: Install Dependencies
         run: brew install ldid dpkg
         
-      - name: Create required files
+      - name: Prepare source files
         run: |
-          # Create all required files
-          cat > LUBV.plist << 'EOF'
+          # Check if the code is in a .txt file and rename it
+          if [ -f "LUBV Ultimate - In-Game GUI Control.txt" ]; then
+            echo "Found txt file, renaming to Tweak.xm..."
+            cp "LUBV Ultimate - In-Game GUI Control.txt" Tweak.xm
+            # Remove the first 3 lines if they contain comment markers
+            sed -i '' '1,3d' Tweak.xm 2>/dev/null || sed -i '1,3d' Tweak.xm
+          fi
+          
+          # Create LUBV.plist if missing
+          if [ ! -f "LUBV.plist" ]; then
+            cat > LUBV.plist << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -39,8 +48,11 @@ jobs:
           </dict>
           </plist>
           EOF
+          fi
           
-          cat > control << 'EOF'
+          # Create control file if missing
+          if [ ! -f "control" ]; then
+            cat > control << 'EOF'
           Package: com.yourname.lubv
           Name: LUBV
           Version: 1.0.0
@@ -51,63 +63,66 @@ jobs:
           Section: Tweaks
           Depends: mobilesubstrate (>= 0.9.5000)
           EOF
+          fi
           
-          cat > Tweak.xm << 'EOF'
-          #import <UIKit/UIKit.h>
-          #import <substrate.h>
-
-          %hook UIViewController
-
-          - (void)viewDidLoad {
-              %orig;
-              UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"LUBV" 
-                                                              message:@"Tweak loaded!" 
-                                                             delegate:nil 
-                                                    cancelButtonTitle:@"OK" 
-                                                    otherButtonTitles:nil];
-              [alert show];
-          }
-
-          %end
-          EOF
+          echo "Files in directory:"
+          ls -la
           
+      - name: Create proper Makefile
+        run: |
           cat > Makefile << 'EOF'
-          export TARGET = iphone:clang:latest:7.0
-          export ARCHS = arm64
+          ARCHS = arm64
+          TARGET = iphone:clang:latest:7.0
 
           include $(THEOS)/makefiles/common.mk
 
           TWEAK_NAME = LUBV
           LUBV_FILES = Tweak.xm
-          LUBV_FRAMEWORKS = UIKit
+          LUBV_FRAMEWORKS = UIKit CoreGraphics
+          LUBV_CFLAGS = -fobjc-arc
+          LUBV_LDFLAGS = -lobjc
 
           include $(THEOS_MAKE_PATH)/tweak.mk
+
+          after-install::
+          	install.exec "killall -9 AmongUs"
           EOF
           
-      - name: Debug - Show files
-        run: |
-          echo "=== Files in directory ==="
-          ls -la
-          echo "=== THEOS path ==="
-          echo $THEOS
-          ls -la $THEOS || echo "THEOS not found"
+          echo "Makefile created:"
+          cat Makefile
           
-      - name: Build with verbose output
+      - name: Build
         run: |
+          set -e
+          echo "=== Building LUBV ==="
           make clean
-          make -v
           make
+          make package
         env:
           ARCHS: arm64
           TARGET: iphone:clang:latest:7.0
           
       - name: Debug - Check build output
         run: |
-          echo "=== Checking .theos directory ==="
-          find .theos -type f 2>/dev/null || echo "No .theos directory"
-          echo "=== Checking for dylibs ==="
-          find . -name "*.dylib" 2>/dev/null || echo "No dylibs found"
-          echo "=== Checking for debs ==="
-          find . -name "*.deb" 2>/dev/null || echo "No debs found"
-          echo "=== Full directory structure ==="
-          find . -type f 2>/dev/null | head -20
+          echo "=== Build output directory ==="
+          find .theos -type f 2>/dev/null | head -20 || echo "No .theos directory"
+          
+          echo "=== Searching for dylib ==="
+          find . -name "*.dylib" -type f 2>/dev/null || echo "No dylib found"
+          
+          echo "=== Searching for deb ==="
+          find . -name "*.deb" -type f 2>/dev/null || echo "No deb found"
+          
+          echo "=== All files ==="
+          ls -laR . 2>/dev/null | grep -E ".(dylib|deb|so)" || echo "No build artifacts found"
+          
+      - name: Upload artifacts if found
+        uses: actions/upload-artifact@v4
+        with:
+          name: LUBV_Build
+          path: |
+            **/*.dylib
+            **/*.deb
+            Tweak.xm
+            LUBV.plist
+          if-no-files-found: warn
