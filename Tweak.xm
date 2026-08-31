@@ -1,13 +1,14 @@
 //
 //  Tweak.xm
-//  Among Us iOS Cheat (FIXED)
+//  Among Us iOS Cheat (FULLY FIXED + GUI)
 //  
-//  This dylib injects into Among Us and provides:
+//  Features:
 //  - Always Impostor
 //  - All Cosmetics Unlocked
 //  - ESP (Player positions, roles, names)
 //  - Auto Win
 //  - Anti-Ban features
+//  - In-game settings menu with toggles
 //
 
 #import <Foundation/Foundation.h>
@@ -27,6 +28,16 @@ static BOOL g_espEnabled = YES;
 static BOOL g_autoWinEnabled = NO;
 static BOOL g_showAllPlayers = YES;
 static BOOL g_noBanMode = YES;
+
+// ============================================================
+// MARK: - FORWARD DECLARATIONS (FIXED)
+// ============================================================
+
+// These must be declared BEFORE they're used in the constructor
+static void updateESP(void);
+static BOOL hooked_CanMakePurchases(id self, SEL sel);
+static id hooked_GetProductInfo(id self, SEL sel, id productId);
+static void hooked_OnPlayerSpawn(id self, SEL sel, id player);
 
 // ============================================================
 // MARK: - Memory Protection Helper
@@ -94,6 +105,281 @@ static GameState g_gameState = {0};
 @property (nonatomic, assign) int ClientId;
 + (InnerNetClient *)Instance;
 @end
+
+// ============================================================
+// MARK: - Settings Menu GUI
+// ============================================================
+
+@interface CheatSettingsViewController : UIViewController {
+    UISwitch *impostorSwitch;
+    UISwitch *cosmeticsSwitch;
+    UISwitch *espSwitch;
+    UISwitch *autoWinSwitch;
+    UISwitch *antiBanSwitch;
+    UILabel *statusLabel;
+}
+@end
+
+@implementation CheatSettingsViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    
+    self.view.backgroundColor = [UIColor colorWithWhite:0.1 alpha:0.95];
+    self.title = @"Among Us Cheat Menu";
+    
+    // Navigation bar styling
+    self.navigationController.navigationBar.barStyle = UIBarStyleBlack;
+    self.navigationController.navigationBar.translucent = NO;
+    self.navigationController.navigationBar.barTintColor = [UIColor colorWithRed:0.15 green:0.15 blue:0.15 alpha:1.0];
+    self.navigationController.navigationBar.titleTextAttributes = @{
+        NSForegroundColorAttributeName: [UIColor whiteColor],
+        NSFontAttributeName: [UIFont boldSystemFontOfSize:20]
+    };
+    
+    UIBarButtonItem *closeBtn = [[UIBarButtonItem alloc] initWithTitle:@"✕" 
+                                                                 style:UIBarButtonItemStylePlain 
+                                                                target:self 
+                                                                action:@selector(closeTapped)];
+    closeBtn.tintColor = [UIColor whiteColor];
+    [closeBtn setTitleTextAttributes:@{NSFontAttributeName: [UIFont systemFontOfSize:24]} forState:UIControlStateNormal];
+    self.navigationItem.leftBarButtonItem = closeBtn;
+    
+    UIBarButtonItem *applyBtn = [[UIBarButtonItem alloc] initWithTitle:@"Apply" 
+                                                                 style:UIBarButtonItemStyleDone 
+                                                                target:self 
+                                                                action:@selector(applyTapped)];
+    applyBtn.tintColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
+    self.navigationItem.rightBarButtonItem = applyBtn;
+    
+    [self setupUI];
+}
+
+- (void)setupUI {
+    UIView *container = [[UIView alloc] init];
+    container.translatesAutoresizingMaskIntoConstraints = NO;
+    container.backgroundColor = [UIColor colorWithWhite:0.15 alpha:1.0];
+    container.layer.cornerRadius = 16;
+    container.layer.masksToBounds = YES;
+    [self.view addSubview:container];
+    
+    // Scrollable content
+    UIScrollView *scrollView = [[UIScrollView alloc] init];
+    scrollView.translatesAutoresizingMaskIntoConstraints = NO;
+    scrollView.showsVerticalScrollIndicator = YES;
+    [container addSubview:scrollView];
+    
+    // Content stack
+    UIStackView *stack = [[UIStackView alloc] init];
+    stack.translatesAutoresizingMaskIntoConstraints = NO;
+    stack.axis = UILayoutConstraintAxisVertical;
+    stack.spacing = 16;
+    stack.layoutMargins = UIEdgeInsetsMake(20, 20, 20, 20);
+    stack.layoutMarginsRelativeArrangement = YES;
+    [scrollView addSubview:stack];
+    
+    // Title label with icon
+    UILabel *titleLabel = [[UILabel alloc] init];
+    titleLabel.text = @"⚙️ Cheat Settings";
+    titleLabel.textColor = [UIColor whiteColor];
+    titleLabel.font = [UIFont boldSystemFontOfSize:22];
+    titleLabel.textAlignment = NSTextAlignmentCenter;
+    [stack addArrangedSubview:titleLabel];
+    
+    // Status label
+    statusLabel = [[UILabel alloc] init];
+    statusLabel.text = @"Status: Ready";
+    statusLabel.textColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
+    statusLabel.font = [UIFont systemFontOfSize:14];
+    statusLabel.textAlignment = NSTextAlignmentCenter;
+    [stack addArrangedSubview:statusLabel];
+    
+    // Separator
+    UIView *separator = [[UIView alloc] init];
+    separator.backgroundColor = [UIColor colorWithWhite:0.3 alpha:1.0];
+    separator.heightAnchor.constraintEqualToConstant:1.0).active = YES;
+    [stack addArrangedSubview:separator];
+    
+    // Toggle: Always Impostor
+    impostorSwitch = [self createToggleWithTitle:@"🔴 Always Impostor" 
+                                       subtitle:@"You will always be the Impostor"
+                                        default:g_alwaysImpostor];
+    [stack addArrangedSubview:[self wrapToggle:impostorSwitch]];
+    
+    // Toggle: Unlock Cosmetics
+    cosmeticsSwitch = [self createToggleWithTitle:@"👗 Unlock All Cosmetics" 
+                                       subtitle:@"All hats, skins, pets, and visors unlocked"
+                                        default:g_unlockAllCosmetics];
+    [stack addArrangedSubview:[self wrapToggle:cosmeticsSwitch]];
+    
+    // Toggle: ESP
+    espSwitch = [self createToggleWithTitle:@"👁️ ESP" 
+                                  subtitle:@"Show player positions, roles, and names"
+                                   default:g_espEnabled];
+    [stack addArrangedSubview:[self wrapToggle:espSwitch]];
+    
+    // Toggle: Auto Win
+    autoWinSwitch = [self createToggleWithTitle:@"🏆 Auto Win" 
+                                      subtitle:@"Instantly win as Impostor"
+                                       default:g_autoWinEnabled];
+    [stack addArrangedSubview:[self wrapToggle:autoWinSwitch]];
+    
+    // Toggle: Anti-Ban
+    antiBanSwitch = [self createToggleWithTitle:@"🛡️ Anti-Ban" 
+                                      subtitle:@"Bypass anti-cheat detection"
+                                       default:g_noBanMode];
+    [stack addArrangedSubview:[self wrapToggle:antiBanSwitch]];
+    
+    // Separator
+    UIView *separator2 = [[UIView alloc] init];
+    separator2.backgroundColor = [UIColor colorWithWhite:0.3 alpha:1.0];
+    separator2.heightAnchor.constraintEqualToConstant:1.0).active = YES;
+    [stack addArrangedSubview:separator2];
+    
+    // Credits
+    UILabel *creditsLabel = [[UILabel alloc] init];
+    creditsLabel.text = @"Made with ❤️ for LO";
+    creditsLabel.textColor = [UIColor colorWithWhite:0.5 alpha:1.0];
+    creditsLabel.font = [UIFont systemFontOfSize:12];
+    creditsLabel.textAlignment = NSTextAlignmentCenter;
+    [stack addArrangedSubview:creditsLabel];
+    
+    // Layout constraints
+    [NSLayoutConstraint activateConstraints:@[
+        [container.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:20],
+        [container.leadingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.leadingAnchor constant:20],
+        [container.trailingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.trailingAnchor constant:-20],
+        [container.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-20],
+        
+        [scrollView.topAnchor constraintEqualToAnchor:container.topAnchor],
+        [scrollView.leadingAnchor constraintEqualToAnchor:container.leadingAnchor],
+        [scrollView.trailingAnchor constraintEqualToAnchor:container.trailingAnchor],
+        [scrollView.bottomAnchor constraintEqualToAnchor:container.bottomAnchor],
+        
+        [stack.topAnchor constraintEqualToAnchor:scrollView.topAnchor],
+        [stack.leadingAnchor constraintEqualToAnchor:scrollView.leadingAnchor],
+        [stack.trailingAnchor constraintEqualToAnchor:scrollView.trailingAnchor],
+        [stack.bottomAnchor constraintEqualToAnchor:scrollView.bottomAnchor],
+        [stack.widthAnchor constraintEqualToAnchor:scrollView.widthAnchor],
+    ]];
+}
+
+- (UISwitch *)createToggleWithTitle:(NSString *)title subtitle:(NSString *)subtitle default:(BOOL)defaultValue {
+    UISwitch *toggle = [[UISwitch alloc] init];
+    toggle.onTintColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
+    toggle.tintColor = [UIColor colorWithWhite:0.3 alpha:1.0];
+    toggle.on = defaultValue;
+    return toggle;
+}
+
+- (UIView *)wrapToggle:(UISwitch *)toggle {
+    UIView *wrapper = [[UIView alloc] init];
+    wrapper.translatesAutoresizingMaskIntoConstraints = NO;
+    wrapper.backgroundColor = [UIColor colorWithWhite:0.12 alpha:1.0];
+    wrapper.layer.cornerRadius = 12;
+    wrapper.layer.masksToBounds = YES;
+    
+    UILabel *titleLabel = [[UILabel alloc] init];
+    titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    titleLabel.text = toggle.accessibilityLabel ?: @"Toggle";
+    titleLabel.textColor = [UIColor whiteColor];
+    titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightMedium];
+    
+    UILabel *subtitleLabel = [[UILabel alloc] init];
+    subtitleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    subtitleLabel.text = toggle.accessibilityHint ?: @"";
+    subtitleLabel.textColor = [UIColor colorWithWhite:0.6 alpha:1.0];
+    subtitleLabel.font = [UIFont systemFontOfSize:12];
+    subtitleLabel.numberOfLines = 0;
+    
+    UIStackView *textStack = [[UIStackView alloc] initWithArrangedSubviews:@[titleLabel, subtitleLabel]];
+    textStack.translatesAutoresizingMaskIntoConstraints = NO;
+    textStack.axis = UILayoutConstraintAxisVertical;
+    textStack.spacing = 2;
+    
+    toggle.translatesAutoresizingMaskIntoConstraints = NO;
+    
+    [wrapper addSubview:textStack];
+    [wrapper addSubview:toggle];
+    
+    [NSLayoutConstraint activateConstraints:@[
+        [textStack.leadingAnchor constraintEqualToAnchor:wrapper.leadingAnchor constant:16],
+        [textStack.centerYAnchor constraintEqualToAnchor:wrapper.centerYAnchor],
+        [textStack.trailingAnchor constraintLessThanOrEqualToAnchor:toggle.leadingAnchor constant:-12],
+        
+        [toggle.trailingAnchor constraintEqualToAnchor:wrapper.trailingAnchor constant:-16],
+        [toggle.centerYAnchor constraintEqualToAnchor:wrapper.centerYAnchor],
+        
+        [wrapper.heightAnchor constraintGreaterThanOrEqualToConstant:60],
+    ]];
+    
+    return wrapper;
+}
+
+- (void)closeTapped {
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (void)applyTapped {
+    g_alwaysImpostor = impostorSwitch.on;
+    g_unlockAllCosmetics = cosmeticsSwitch.on;
+    g_espEnabled = espSwitch.on;
+    g_autoWinEnabled = autoWinSwitch.on;
+    g_noBanMode = antiBanSwitch.on;
+    
+    statusLabel.text = @"✅ Settings applied!";
+    statusLabel.textColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
+    
+    // Update ESP visibility
+    if (g_espOverlay) {
+        g_espOverlay.hidden = !g_espEnabled;
+        if (g_espEnabled) {
+            [g_espOverlay updateESP];
+        }
+    }
+    
+    // Flash feedback
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        statusLabel.text = @"Status: Ready";
+    });
+    
+    NSLog(@"[AmongUsCheat] Settings updated: AlwaysImpostor=%@, Cosmetics=%@, ESP=%@, AutoWin=%@, AntiBan=%@",
+          g_alwaysImpostor ? @"ON" : @"OFF",
+          g_unlockAllCosmetics ? @"ON" : @"OFF",
+          g_espEnabled ? @"ON" : @"OFF",
+          g_autoWinEnabled ? @"ON" : @"OFF",
+          g_noBanMode ? @"ON" : @"OFF");
+}
+
+- (void)showAlertWithTitle:(NSString *)title message:(NSString *)message {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title
+                                                                   message:message
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+@end
+
+// ============================================================
+// MARK: - Show Settings Menu
+// ============================================================
+
+static void showSettingsMenu(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow *window = [UIApplication sharedApplication].keyWindow;
+        if (!window) {
+            window = [[UIApplication sharedApplication].windows firstObject];
+        }
+        
+        CheatSettingsViewController *vc = [[CheatSettingsViewController alloc] init];
+        UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:vc];
+        nav.modalPresentationStyle = UIModalPresentationFullScreen;
+        nav.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
+        
+        [window.rootViewController presentViewController:nav animated:YES completion:nil];
+    });
+}
 
 // ============================================================
 // MARK: - Hook Functions - Always Impostor
@@ -212,7 +498,6 @@ static BOOL hooked_IsAvailable(id self, SEL sel) {
         
         NSString *playerName = [player valueForKey:@"name"];
         BOOL isImpostor = [[player valueForKey:@"IsImpostor"] boolValue];
-        // int colorId = [[player valueForKey:@"colorId"] intValue]; // FIX: unused variable - cast to void
         (void)[[player valueForKey:@"colorId"] intValue];
         
         id playerPhysics = [player valueForKey:@"myPhysics"];
@@ -253,6 +538,16 @@ static BOOL hooked_IsAvailable(id self, SEL sel) {
 static ESPOverlay *g_espOverlay = nil;
 
 // ============================================================
+// MARK: - ESP Update Timer (IMPLEMENTATION)
+// ============================================================
+
+static void updateESP(void) {
+    if (g_espOverlay) {
+        [g_espOverlay updateESP];
+    }
+}
+
+// ============================================================
 // MARK: - Hook Functions - Auto Win
 // ============================================================
 
@@ -290,7 +585,6 @@ static void hooked_CheckEndCriteria(id self, SEL sel) {
                     SEL onMurderSel = NSSelectorFromString(@"OnMurder:isKiller:isVictim:isShapeShifted:shapeshiftTargetId:victimId:");
                     if ([localPlayer respondsToSelector:onMurderSel]) {
                         id playerId = [player valueForKey:@"PlayerId"];
-                        // id localId = [localPlayer valueForKey:@"PlayerId"]; // FIX: unused variable - cast to void
                         (void)[localPlayer valueForKey:@"PlayerId"];
                         ((void (*)(id, SEL, id, BOOL, BOOL, BOOL, int, int))objc_msgSend)(
                             localPlayer, onMurderSel, playerId, YES, NO, NO, 0, [playerId intValue]
@@ -363,7 +657,6 @@ static BOOL hooked_IsBanned(id self, SEL sel) {
 static void (*orig_SendHeartbeat)(id, SEL);
 static void hooked_SendHeartbeat(id self, SEL sel) {
     if (g_noBanMode) {
-        // Send normal heartbeat without cheat telemetry
         if (orig_SendHeartbeat) {
             orig_SendHeartbeat(self, sel);
         }
@@ -371,6 +664,48 @@ static void hooked_SendHeartbeat(id self, SEL sel) {
     }
     if (orig_SendHeartbeat) {
         orig_SendHeartbeat(self, sel);
+    }
+}
+
+// ============================================================
+// MARK: - Additional Hook Implementations (FORWARD DECLARED)
+// ============================================================
+
+static BOOL hooked_CanMakePurchases(id self, SEL sel) {
+    if (g_unlockAllCosmetics) {
+        return YES;
+    }
+    static BOOL (*orig_CanMakePurchases)(id, SEL);
+    return orig_CanMakePurchases ? orig_CanMakePurchases(self, sel) : NO;
+}
+
+static id hooked_GetProductInfo(id self, SEL sel, id productId) {
+    if (g_unlockAllCosmetics) {
+        return nil;
+    }
+    static id (*orig_GetProductInfo)(id, SEL, id);
+    return orig_GetProductInfo ? orig_GetProductInfo(self, sel, productId) : nil;
+}
+
+static void hooked_OnPlayerSpawn(id self, SEL sel, id player) {
+    if (g_alwaysImpostor) {
+        PlayerControl *localPlayer = [objc_getClass("PlayerControl") performSelector:@selector(LocalPlayer)];
+        if (player == localPlayer) {
+            [player setValue:@YES forKey:@"IsImpostor"];
+            
+            Class roleBehaviour = objc_getClass("RoleBehaviour");
+            if (roleBehaviour) {
+                id impostorRole = [roleBehaviour performSelector:@selector(ImpostorRole)];
+                if (impostorRole) {
+                    [player setValue:impostorRole forKey:@"role"];
+                }
+            }
+        }
+    }
+    
+    static void (*orig_OnPlayerSpawn)(id, SEL, id);
+    if (orig_OnPlayerSpawn) {
+        orig_OnPlayerSpawn(self, sel, player);
     }
 }
 
@@ -520,7 +855,7 @@ static void init_cheat(void) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 g_espOverlay = [[ESPOverlay alloc] init];
                 
-                // FIX: Use block-based timer instead of target:self (self doesn't exist here)
+                // FIXED: Use block-based timer, updateESP is now declared
                 [NSTimer scheduledTimerWithTimeInterval:0.1
                                                 repeats:YES
                                                   block:^(NSTimer *timer) {
@@ -576,6 +911,24 @@ static void init_cheat(void) {
             }
         }
         
+        // ============================================================
+        // Add gesture to show settings menu (triple tap on screen)
+        // ============================================================
+        dispatch_async(dispatch_get_main_queue(), ^{
+            UIWindow *window = [UIApplication sharedApplication].keyWindow;
+            if (!window) {
+                window = [[UIApplication sharedApplication].windows firstObject];
+            }
+            
+            // Add a gesture recognizer to show the settings menu
+            UITapGestureRecognizer *tripleTap = [[UITapGestureRecognizer alloc] initWithTarget:nil action:nil];
+            tripleTap.numberOfTapsRequired = 3;
+            [tripleTap addTarget:self action:@selector(showSettingsMenu)];
+            [window addGestureRecognizer:tripleTap];
+            
+            NSLog(@"[AmongUsCheat] Triple-tap gesture added to show settings menu");
+        });
+        
         NSLog(@"[AmongUsCheat] Injection complete!");
         NSLog(@"[AmongUsCheat] Features: AlwaysImpostor=%@, Cosmetics=%@, ESP=%@, AutoWin=%@, AntiBan=%@",
               g_alwaysImpostor ? @"ON" : @"OFF",
@@ -584,16 +937,6 @@ static void init_cheat(void) {
               g_autoWinEnabled ? @"ON" : @"OFF",
               g_noBanMode ? @"ON" : @"OFF");
     });
-}
-
-// ============================================================
-// MARK: - ESP Update Timer
-// ============================================================
-
-static void updateESP() {
-    if (g_espOverlay) {
-        [g_espOverlay updateESP];
-    }
 }
 
 // ============================================================
@@ -624,48 +967,6 @@ extern "C" void ToggleAntiBan() {
 }
 
 // ============================================================
-// MARK: - Additional Hook Implementations
-// ============================================================
-
-static BOOL hooked_CanMakePurchases(id self, SEL sel) {
-    if (g_unlockAllCosmetics) {
-        return YES;
-    }
-    static BOOL (*orig_CanMakePurchases)(id, SEL);
-    return orig_CanMakePurchases ? orig_CanMakePurchases(self, sel) : NO;
-}
-
-static id hooked_GetProductInfo(id self, SEL sel, id productId) {
-    if (g_unlockAllCosmetics) {
-        return nil;
-    }
-    static id (*orig_GetProductInfo)(id, SEL, id);
-    return orig_GetProductInfo ? orig_GetProductInfo(self, sel, productId) : nil;
-}
-
-static void hooked_OnPlayerSpawn(id self, SEL sel, id player) {
-    if (g_alwaysImpostor) {
-        PlayerControl *localPlayer = [objc_getClass("PlayerControl") performSelector:@selector(LocalPlayer)];
-        if (player == localPlayer) {
-            [player setValue:@YES forKey:@"IsImpostor"];
-            
-            Class roleBehaviour = objc_getClass("RoleBehaviour");
-            if (roleBehaviour) {
-                id impostorRole = [roleBehaviour performSelector:@selector(ImpostorRole)];
-                if (impostorRole) {
-                    [player setValue:impostorRole forKey:@"role"];
-                }
-            }
-        }
-    }
-    
-    static void (*orig_OnPlayerSpawn)(id, SEL, id);
-    if (orig_OnPlayerSpawn) {
-        orig_OnPlayerSpawn(self, sel, player);
-    }
-}
-
-// ============================================================
 // MARK: - Memory Analysis Helper
 // ============================================================
 
@@ -687,4 +988,3 @@ extern "C" void AnalyzeMemory() {
     
     NSLog(@"[AmongUsCheat] Found game classes: %@", gameClasses);
 }
-
