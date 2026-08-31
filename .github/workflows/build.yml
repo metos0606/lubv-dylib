@@ -1,0 +1,36 @@
+name: Build LUBV Dylib
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Theos
+        run: |
+          git clone --recursive https://github.com/theos/theos.git $HOME/theos
+          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+          echo "$HOME/theos/bin" >> $GITHUB_PATH
+          
+      - name: Install Dependencies
+        run: brew install ldid dpkg
+        
+      - name: Build
+        run: |
+          make clean
+          make
+          make package
+          
+      - name: Upload Dylib
+        uses: actions/upload-artifact@v4
+        with:
+          name: LUBV_Dylib
+          path: |
+            .theos/obj/*.dylib
+            *.deb
