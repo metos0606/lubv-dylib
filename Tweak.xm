@@ -357,16 +357,31 @@
 }
 
 - (void)refreshESP {
-    // Force update ESP on all players
+    // Use NSInvocation instead of performSelector to avoid ARC warnings
     Class playerClass = NSClassFromString(@"PlayerControl");
     if (playerClass) {
-        // Get all players and refresh their outline
-        id localPlayer = [playerClass performSelector:@selector(localPlayer)];
-        if (localPlayer) {
-            // Force outline refresh
-            SEL refreshSel = NSSelectorFromString(@"refreshOutline");
-            if ([localPlayer respondsToSelector:refreshSel]) {
-                [localPlayer performSelector:refreshSel];
+        SEL localPlayerSel = NSSelectorFromString(@"localPlayer");
+        if ([playerClass respondsToSelector:localPlayerSel]) {
+            // Use NSInvocation to call class method
+            NSMethodSignature *signature = [playerClass methodSignatureForSelector:localPlayerSel];
+            NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
+            [invocation setTarget:playerClass];
+            [invocation setSelector:localPlayerSel];
+            [invocation invoke];
+            
+            id localPlayer = nil;
+            [invocation getReturnValue:&localPlayer];
+            
+            if (localPlayer) {
+                SEL refreshSel = NSSelectorFromString(@"refreshOutline");
+                if ([localPlayer respondsToSelector:refreshSel]) {
+                    // Use NSInvocation for instance method
+                    NSMethodSignature *instanceSig = [localPlayer methodSignatureForSelector:refreshSel];
+                    NSInvocation *instanceInv = [NSInvocation invocationWithMethodSignature:instanceSig];
+                    [instanceInv setTarget:localPlayer];
+                    [instanceInv setSelector:refreshSel];
+                    [instanceInv invoke];
+                }
             }
         }
     }
@@ -376,10 +391,21 @@
     // Reset vent cooldown for all players
     Class ventClass = NSClassFromString(@"Vent");
     if (ventClass) {
-        // Get all vents and reset cooldown
-        id allVents = [ventClass performSelector:@selector(allVents)];
-        if (allVents && [allVents respondsToSelector:@selector(makeObjectsPerformSelector:)]) {
-            [allVents makeObjectsPerformSelector:NSSelectorFromString(@"resetCooldown")];
+        SEL allVentsSel = NSSelectorFromString(@"allVents");
+        if ([ventClass respondsToSelector:allVentsSel]) {
+            NSMethodSignature *signature = [ventClass methodSignatureForSelector:allVentsSel];
+            NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
+            [invocation setTarget:ventClass];
+            [invocation setSelector:allVentsSel];
+            [invocation invoke];
+            
+            id allVents = nil;
+            [invocation getReturnValue:&allVents];
+            
+            if (allVents && [allVents respondsToSelector:@selector(makeObjectsPerformSelector:)]) {
+                SEL resetSel = NSSelectorFromString(@"resetCooldown");
+                [allVents makeObjectsPerformSelector:resetSel];
+            }
         }
     }
 }
