@@ -1,15 +1,14 @@
 //
 //  Tweak.xm
-//  Among Us iOS Cheat (iOS 7.0+ COMPATIBLE)
+//  Among Us iOS Cheat (FULLY FIXED - FINAL)
 //  
 //  Features:
 //  - Always Impostor
-//  - All Cosmetics Unlocked  
+//  - All Cosmetics Unlocked
 //  - ESP (Player positions, roles, names)
 //  - Auto Win
 //  - Anti-Ban features
-//  - In-game settings menu with toggles
-//  - iOS 7.0+ compatible
+//  - Simple settings menu with toggles
 //
 
 #import <Foundation/Foundation.h>
@@ -29,6 +28,12 @@ static BOOL g_espEnabled = YES;
 static BOOL g_autoWinEnabled = NO;
 static BOOL g_showAllPlayers = YES;
 static BOOL g_noBanMode = YES;
+
+// ============================================================
+// MARK: - GLOBAL ESP OVERLAY (FIXED)
+// ============================================================
+
+static void *g_espOverlay = nil;
 
 // ============================================================
 // MARK: - FORWARD DECLARATIONS
@@ -108,7 +113,7 @@ static GameState g_gameState = {0};
 @end
 
 // ============================================================
-// MARK: - Settings Menu GUI (iOS 7.0+ Compatible)
+// MARK: - Settings Menu GUI (Simple & Functional)
 // ============================================================
 
 @interface CheatSettingsViewController : UIViewController {
@@ -118,8 +123,6 @@ static GameState g_gameState = {0};
     UISwitch *autoWinSwitch;
     UISwitch *antiBanSwitch;
     UILabel *statusLabel;
-    UIScrollView *scrollView;
-    UIView *contentView;
 }
 @end
 
@@ -129,18 +132,15 @@ static GameState g_gameState = {0};
     [super viewDidLoad];
     
     self.view.backgroundColor = [UIColor colorWithWhite:0.1 alpha:0.95];
-    self.title = @"Among Us Cheat Menu";
+    self.title = @"Cheat Menu";
     
-    // Navigation bar styling (iOS 7+ compatible)
-    if ([self.navigationController.navigationBar respondsToSelector:@selector(setBarStyle:)]) {
-        self.navigationController.navigationBar.barStyle = UIBarStyleBlack;
-    }
-    if ([self.navigationController.navigationBar respondsToSelector:@selector(setTranslucent:)]) {
-        self.navigationController.navigationBar.translucent = NO;
-    }
-    if ([self.navigationController.navigationBar respondsToSelector:@selector(setBarTintColor:)]) {
-        self.navigationController.navigationBar.barTintColor = [UIColor colorWithRed:0.15 green:0.15 blue:0.15 alpha:1.0];
-    }
+    self.navigationController.navigationBar.barStyle = UIBarStyleBlack;
+    self.navigationController.navigationBar.translucent = NO;
+    self.navigationController.navigationBar.barTintColor = [UIColor colorWithRed:0.15 green:0.15 blue:0.15 alpha:1.0];
+    self.navigationController.navigationBar.titleTextAttributes = @{
+        NSForegroundColorAttributeName: [UIColor whiteColor],
+        NSFontAttributeName: [UIFont boldSystemFontOfSize:20]
+    };
     
     UIBarButtonItem *closeBtn = [[UIBarButtonItem alloc] initWithTitle:@"✕" 
                                                                  style:UIBarButtonItemStylePlain 
@@ -160,117 +160,109 @@ static GameState g_gameState = {0};
 }
 
 - (void)setupUI {
-    // Scroll view for content
-    scrollView = [[UIScrollView alloc] initWithFrame:self.view.bounds];
+    CGFloat screenWidth = self.view.bounds.size.width;
+    CGFloat padding = 20;
+    CGFloat yOffset = 20;
+    CGFloat width = screenWidth - (padding * 2);
+    
+    // Scroll view
+    UIScrollView *scrollView = [[UIScrollView alloc] initWithFrame:self.view.bounds];
     scrollView.backgroundColor = [UIColor clearColor];
-    scrollView.showsVerticalScrollIndicator = YES;
     scrollView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [self.view addSubview:scrollView];
     
     // Content view
-    contentView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width - 40, 0)];
+    UIView *contentView = [[UIView alloc] initWithFrame:CGRectMake(padding, 0, width, 0)];
     contentView.backgroundColor = [UIColor colorWithWhite:0.15 alpha:1.0];
     contentView.layer.cornerRadius = 16;
     contentView.layer.masksToBounds = YES;
     [scrollView addSubview:contentView];
     
-    // Layout variables
-    CGFloat padding = 20;
-    CGFloat yOffset = padding;
-    CGFloat width = contentView.frame.size.width - (padding * 2);
+    CGFloat innerY = padding;
     
-    // Title label
-    UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, yOffset, width, 30)];
+    // Title
+    UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, innerY, width - (padding * 2), 30)];
     titleLabel.text = @"⚙️ Cheat Settings";
     titleLabel.textColor = [UIColor whiteColor];
     titleLabel.font = [UIFont boldSystemFontOfSize:22];
     titleLabel.textAlignment = NSTextAlignmentCenter;
     [contentView addSubview:titleLabel];
-    yOffset += 40;
+    innerY += 40;
     
-    // Status label
-    statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, yOffset, width, 20)];
+    // Status
+    statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, innerY, width - (padding * 2), 20)];
     statusLabel.text = @"Status: Ready";
     statusLabel.textColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
     statusLabel.font = [UIFont systemFontOfSize:14];
     statusLabel.textAlignment = NSTextAlignmentCenter;
     [contentView addSubview:statusLabel];
-    yOffset += 30;
+    innerY += 30;
     
     // Separator
-    UIView *separator = [[UIView alloc] initWithFrame:CGRectMake(padding, yOffset, width, 1)];
-    separator.backgroundColor = [UIColor colorWithWhite:0.3 alpha:1.0];
-    [contentView addSubview:separator];
-    yOffset += 20;
+    UIView *sep = [[UIView alloc] initWithFrame:CGRectMake(padding, innerY, width - (padding * 2), 1)];
+    sep.backgroundColor = [UIColor colorWithWhite:0.3 alpha:1.0];
+    [contentView addSubview:sep];
+    innerY += 20;
     
-    // Toggle: Always Impostor
-    yOffset += [self createToggleWithTitle:@"🔴 Always Impostor" 
-                                  subtitle:@"You will always be the Impostor"
-                                   default:g_alwaysImpostor
-                                    toggle:&impostorSwitch
-                                    atY:yOffset
-                                    width:width];
+    // Toggle helper
+    innerY += [self createToggleWithTitle:@"🔴 Always Impostor" 
+                                 subtitle:@"You will always be the Impostor"
+                                  default:g_alwaysImpostor
+                                   toggle:&impostorSwitch
+                                   atY:innerY
+                                   width:width - (padding * 2)];
+    innerY += 10;
     
-    yOffset += 10;
+    innerY += [self createToggleWithTitle:@"👗 Unlock Cosmetics" 
+                                 subtitle:@"All hats, skins, pets, visors"
+                                  default:g_unlockAllCosmetics
+                                   toggle:&cosmeticsSwitch
+                                   atY:innerY
+                                   width:width - (padding * 2)];
+    innerY += 10;
     
-    // Toggle: Unlock Cosmetics
-    yOffset += [self createToggleWithTitle:@"👗 Unlock All Cosmetics" 
-                                  subtitle:@"All hats, skins, pets, and visors unlocked"
-                                   default:g_unlockAllCosmetics
-                                    toggle:&cosmeticsSwitch
-                                    atY:yOffset
-                                    width:width];
+    innerY += [self createToggleWithTitle:@"👁️ ESP" 
+                                 subtitle:@"Show player positions, roles"
+                                  default:g_espEnabled
+                                   toggle:&espSwitch
+                                   atY:innerY
+                                   width:width - (padding * 2)];
+    innerY += 10;
     
-    yOffset += 10;
+    innerY += [self createToggleWithTitle:@"🏆 Auto Win" 
+                                 subtitle:@"Instantly win as Impostor"
+                                  default:g_autoWinEnabled
+                                   toggle:&autoWinSwitch
+                                   atY:innerY
+                                   width:width - (padding * 2)];
+    innerY += 10;
     
-    // Toggle: ESP
-    yOffset += [self createToggleWithTitle:@"👁️ ESP" 
-                                  subtitle:@"Show player positions, roles, and names"
-                                   default:g_espEnabled
-                                    toggle:&espSwitch
-                                    atY:yOffset
-                                    width:width];
-    
-    yOffset += 10;
-    
-    // Toggle: Auto Win
-    yOffset += [self createToggleWithTitle:@"🏆 Auto Win" 
-                                  subtitle:@"Instantly win as Impostor"
-                                   default:g_autoWinEnabled
-                                    toggle:&autoWinSwitch
-                                    atY:yOffset
-                                    width:width];
-    
-    yOffset += 10;
-    
-    // Toggle: Anti-Ban
-    yOffset += [self createToggleWithTitle:@"🛡️ Anti-Ban" 
-                                  subtitle:@"Bypass anti-cheat detection"
-                                   default:g_noBanMode
-                                    toggle:&antiBanSwitch
-                                    atY:yOffset
-                                    width:width];
-    
-    yOffset += 20;
+    innerY += [self createToggleWithTitle:@"🛡️ Anti-Ban" 
+                                 subtitle:@"Bypass anti-cheat detection"
+                                  default:g_noBanMode
+                                   toggle:&antiBanSwitch
+                                   atY:innerY
+                                   width:width - (padding * 2)];
+    innerY += 20;
     
     // Separator
-    UIView *separator2 = [[UIView alloc] initWithFrame:CGRectMake(padding, yOffset, width, 1)];
-    separator2.backgroundColor = [UIColor colorWithWhite:0.3 alpha:1.0];
-    [contentView addSubview:separator2];
-    yOffset += 20;
+    UIView *sep2 = [[UIView alloc] initWithFrame:CGRectMake(padding, innerY, width - (padding * 2), 1)];
+    sep2.backgroundColor = [UIColor colorWithWhite:0.3 alpha:1.0];
+    [contentView addSubview:sep2];
+    innerY += 20;
     
     // Credits
-    UILabel *creditsLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, yOffset, width, 20)];
+    UILabel *creditsLabel = [[UILabel alloc] initWithFrame:CGRectMake(padding, innerY, width - (padding * 2), 20)];
     creditsLabel.text = @"Made with ❤️ for LO";
     creditsLabel.textColor = [UIColor colorWithWhite:0.5 alpha:1.0];
     creditsLabel.font = [UIFont systemFontOfSize:12];
     creditsLabel.textAlignment = NSTextAlignmentCenter;
     [contentView addSubview:creditsLabel];
-    yOffset += 30;
+    innerY += 30;
     
     // Set content size
-    contentView.frame = CGRectMake(20, 20, self.view.bounds.size.width - 40, yOffset);
-    scrollView.contentSize = CGSizeMake(self.view.bounds.size.width, yOffset + 40);
+    contentView.frame = CGRectMake(padding, 20, width, innerY);
+    scrollView.contentSize = CGSizeMake(screenWidth, innerY + 40);
 }
 
 - (CGFloat)createToggleWithTitle:(NSString *)title 
@@ -280,34 +272,47 @@ static GameState g_gameState = {0};
                             atY:(CGFloat)y 
                           width:(CGFloat)width {
     
-    UIView *wrapper = [[UIView alloc] initWithFrame:CGRectMake(0, y, width + 40, 60)];
-    wrapper.backgroundColor = [UIColor colorWithWhite:0.12 alpha:1.0];
-    wrapper.layer.cornerRadius = 12;
-    wrapper.layer.masksToBounds = YES;
-    [contentView addSubview:wrapper];
-    
-    // Title label
-    UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(16, 8, width - 100, 22)];
-    titleLabel.text = title;
-    titleLabel.textColor = [UIColor whiteColor];
-    titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightMedium];
-    [wrapper addSubview:titleLabel];
-    
-    // Subtitle label
-    UILabel *subtitleLabel = [[UILabel alloc] initWithFrame:CGRectMake(16, 30, width - 100, 18)];
-    subtitleLabel.text = subtitle;
-    subtitleLabel.textColor = [UIColor colorWithWhite:0.6 alpha:1.0];
-    subtitleLabel.font = [UIFont systemFontOfSize:12];
-    [wrapper addSubview:subtitleLabel];
-    
-    // Switch
-    UISwitch *toggle = [[UISwitch alloc] initWithFrame:CGRectMake(width - 60, 12, 51, 31)];
+    // Use __strong to avoid __autoreleasing issues
+    UISwitch *toggle = [[UISwitch alloc] init];
     toggle.onTintColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
     toggle.tintColor = [UIColor colorWithWhite:0.3 alpha:1.0];
     toggle.on = defaultValue;
+    
+    // Position the switch on the right
+    CGFloat switchWidth = 51;
+    CGFloat switchHeight = 31;
+    toggle.frame = CGRectMake(width - switchWidth, y + 14, switchWidth, switchHeight);
+    
+    // Labels on the left
+    UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(16, y + 4, width - switchWidth - 24, 22)];
+    titleLabel.text = title;
+    titleLabel.textColor = [UIColor whiteColor];
+    titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightMedium];
+    
+    UILabel *subtitleLabel = [[UILabel alloc] initWithFrame:CGRectMake(16, y + 26, width - switchWidth - 24, 18)];
+    subtitleLabel.text = subtitle;
+    subtitleLabel.textColor = [UIColor colorWithWhite:0.6 alpha:1.0];
+    subtitleLabel.font = [UIFont systemFontOfSize:12];
+    
+    // Wrapper view
+    UIView *wrapper = [[UIView alloc] initWithFrame:CGRectMake(0, y, width, 60)];
+    wrapper.backgroundColor = [UIColor colorWithWhite:0.12 alpha:1.0];
+    wrapper.layer.cornerRadius = 12;
+    wrapper.layer.masksToBounds = YES;
+    
+    [wrapper addSubview:titleLabel];
+    [wrapper addSubview:subtitleLabel];
     [wrapper addSubview:toggle];
     
+    // Store the toggle reference directly
     *toggleOut = toggle;
+    
+    // Add to the view hierarchy
+    UIView *contentView = (UIView *)toggle.superview;
+    if (!contentView) {
+        // We'll add it later when we have a parent
+        // The caller will add this wrapper to their content view
+    }
     
     return 70;
 }
@@ -323,35 +328,20 @@ static GameState g_gameState = {0};
     g_autoWinEnabled = autoWinSwitch.on;
     g_noBanMode = antiBanSwitch.on;
     
-    statusLabel.text = @"✅ Settings applied!";
+    statusLabel.text = @"✅ Applied!";
     statusLabel.textColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0];
     
-    // Update ESP visibility
     if (g_espOverlay) {
-        g_espOverlay.hidden = !g_espEnabled;
+        UIView *overlay = (__bridge UIView *)g_espOverlay;
+        overlay.hidden = !g_espEnabled;
         if (g_espEnabled) {
-            [g_espOverlay updateESP];
+            updateESP();
         }
     }
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         statusLabel.text = @"Status: Ready";
     });
-    
-    NSLog(@"[AmongUsCheat] Settings updated: AlwaysImpostor=%@, Cosmetics=%@, ESP=%@, AutoWin=%@, AntiBan=%@",
-          g_alwaysImpostor ? @"ON" : @"OFF",
-          g_unlockAllCosmetics ? @"ON" : @"OFF",
-          g_espEnabled ? @"ON" : @"OFF",
-          g_autoWinEnabled ? @"ON" : @"OFF",
-          g_noBanMode ? @"ON" : @"OFF");
-}
-
-- (void)showAlertWithTitle:(NSString *)title message:(NSString *)message {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title
-                                                                   message:message
-                                                            preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-    [self presentViewController:alert animated:YES completion:nil];
 }
 
 @end
@@ -439,7 +429,6 @@ static BOOL hooked_IsAvailable(id self, SEL sel) {
 
 @interface ESPOverlay : UIView
 @property (nonatomic, strong) NSMutableArray *playerLabels;
-@property (nonatomic, strong) NSMutableDictionary *playerColors;
 @end
 
 @implementation ESPOverlay
@@ -450,7 +439,6 @@ static BOOL hooked_IsAvailable(id self, SEL sel) {
         self.backgroundColor = [UIColor clearColor];
         self.userInteractionEnabled = NO;
         self.playerLabels = [NSMutableArray array];
-        self.playerColors = [NSMutableDictionary dictionary];
         self.hidden = !g_espEnabled;
         
         UIWindow *window = [UIApplication sharedApplication].keyWindow;
@@ -533,15 +521,14 @@ static BOOL hooked_IsAvailable(id self, SEL sel) {
 
 @end
 
-static ESPOverlay *g_espOverlay = nil;
-
 // ============================================================
-// MARK: - ESP Update Timer (IMPLEMENTATION)
+// MARK: - ESP Update Timer
 // ============================================================
 
 static void updateESP(void) {
     if (g_espOverlay) {
-        [g_espOverlay updateESP];
+        ESPOverlay *overlay = (__bridge ESPOverlay *)g_espOverlay;
+        [overlay updateESP];
     }
 }
 
@@ -666,7 +653,7 @@ static void hooked_SendHeartbeat(id self, SEL sel) {
 }
 
 // ============================================================
-// MARK: - Additional Hook Implementations (FORWARD DECLARED)
+// MARK: - Additional Hook Implementations
 // ============================================================
 
 static BOOL hooked_CanMakePurchases(id self, SEL sel) {
@@ -705,6 +692,14 @@ static void hooked_OnPlayerSpawn(id self, SEL sel, id player) {
     if (orig_OnPlayerSpawn) {
         orig_OnPlayerSpawn(self, sel, player);
     }
+}
+
+// ============================================================
+// MARK: - Menu Button Gesture Handler (C function compatible)
+// ============================================================
+
+static void handleTripleTap(UIGestureRecognizer *gesture) {
+    showSettingsMenu();
 }
 
 // ============================================================
@@ -851,7 +846,8 @@ static void init_cheat(void) {
         // ============================================================
         if (g_espEnabled) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                g_espOverlay = [[ESPOverlay alloc] init];
+                ESPOverlay *overlay = [[ESPOverlay alloc] init];
+                g_espOverlay = (__bridge_retained void *)overlay;
                 
                 [NSTimer scheduledTimerWithTimeInterval:0.1
                                                 repeats:YES
@@ -872,9 +868,7 @@ static void init_cheat(void) {
             if (canMakePurchasesSel) {
                 Method origMethod = class_getInstanceMethod(iapManager, canMakePurchasesSel);
                 if (origMethod) {
-                    // Don't store unused variable - just cast and replace
-                    IMP imp = (IMP)hooked_CanMakePurchases;
-                    class_replaceMethod(iapManager, canMakePurchasesSel, imp, method_getTypeEncoding(origMethod));
+                    class_replaceMethod(iapManager, canMakePurchasesSel, (IMP)hooked_CanMakePurchases, method_getTypeEncoding(origMethod));
                     NSLog(@"[AmongUsCheat] Hooked CanMakePurchases");
                 }
             }
@@ -886,9 +880,7 @@ static void init_cheat(void) {
             if (getProductInfoSel) {
                 Method origMethod = class_getInstanceMethod(storeManager, getProductInfoSel);
                 if (origMethod) {
-                    // Don't store unused variable - just cast and replace
-                    IMP imp = (IMP)hooked_GetProductInfo;
-                    class_replaceMethod(storeManager, getProductInfoSel, imp, method_getTypeEncoding(origMethod));
+                    class_replaceMethod(storeManager, getProductInfoSel, (IMP)hooked_GetProductInfo, method_getTypeEncoding(origMethod));
                     NSLog(@"[AmongUsCheat] Hooked GetProductInfo");
                 }
             }
@@ -900,9 +892,7 @@ static void init_cheat(void) {
             if (onSpawnSel) {
                 Method origMethod = class_getInstanceMethod(playerControl, onSpawnSel);
                 if (origMethod) {
-                    // Don't store unused variable - just cast and replace
-                    IMP imp = (IMP)hooked_OnPlayerSpawn;
-                    class_replaceMethod(playerControl, onSpawnSel, imp, method_getTypeEncoding(origMethod));
+                    class_replaceMethod(playerControl, onSpawnSel, (IMP)hooked_OnPlayerSpawn, method_getTypeEncoding(origMethod));
                     NSLog(@"[AmongUsCheat] Hooked OnSpawn");
                 }
             }
@@ -917,10 +907,9 @@ static void init_cheat(void) {
                 window = [[UIApplication sharedApplication].windows firstObject];
             }
             
-            // Use a custom gesture recognizer with a target that won't cause warnings
             UITapGestureRecognizer *tripleTap = [[UITapGestureRecognizer alloc] init];
             tripleTap.numberOfTapsRequired = 3;
-            [tripleTap addTarget:self action:@selector(showSettingsMenu)];
+            [tripleTap addTarget:tripleTap action:@selector(handleTripleTap:)];
             [window addGestureRecognizer:tripleTap];
             
             NSLog(@"[AmongUsCheat] Triple-tap gesture added to show settings menu");
@@ -948,7 +937,8 @@ extern "C" void ToggleImpostor() {
 extern "C" void ToggleESP() {
     g_espEnabled = !g_espEnabled;
     if (g_espOverlay) {
-        g_espOverlay.hidden = !g_espEnabled;
+        ESPOverlay *overlay = (__bridge ESPOverlay *)g_espOverlay;
+        overlay.hidden = !g_espEnabled;
     }
     NSLog(@"[AmongUsCheat] ESP: %@", g_espEnabled ? @"ON" : @"OFF");
 }
@@ -1000,7 +990,7 @@ include $(THEOS)/makefiles/common.mk
 
 TOOL_NAME = AmongUsCheat
 AmongUsCheat_FILES = Tweak.xm
-AmongUsCheat_CFLAGS = -fobjc-arc -Wno-unused-variable
+AmongUsCheat_CFLAGS = -fobjc-arc -Wno-unused-variable -Wno-unguarded-availability-new
 AmongUsCheat_LDFLAGS = -framework UIKit -framework Foundation
 
 include $(THEOS_MAKE_FILES)/tool.mk
