@@ -8,7 +8,7 @@ TWEAK_NAME = LUBV
 
 # Build files & flags
 LUBV_FILES = Tweak.xm
-LUBV_CFLAGS = -fobjc-arc
+LUBV_CFLAGS = -fobjc-arc -Wno-unused-variable
 LUBV_FRAMEWORKS = UIKit CoreGraphics QuartzCore
 LUBV_LDFLAGS = -lobjc
 
