@@ -2,6 +2,7 @@
 
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
+#import <substrate.h>
 
 // ============================================================
 // SETTINGS MANAGER
@@ -22,12 +23,6 @@
 @property (nonatomic, assign) BOOL unlimitedEmergencies;
 @property (nonatomic, assign) BOOL noClip;
 @property (nonatomic, assign) float playerSpeed;
-@property (nonatomic, assign) BOOL noPhantomCooldown;
-@property (nonatomic, assign) BOOL noShapeshifterCooldown;
-@property (nonatomic, assign) BOOL noEngineerCooldown;
-@property (nonatomic, assign) BOOL noDetectiveCooldown;
-@property (nonatomic, assign) BOOL noTrackerCooldown;
-@property (nonatomic, assign) BOOL noGuardianAngelCooldown;
 @property (nonatomic, assign) BOOL unlockAllIAP;
 + (instancetype)sharedInstance;
 @end
@@ -39,6 +34,7 @@
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         instance = [[LUBVSettings alloc] init];
+        // Default settings
         instance.alwaysImpostor = YES;
         instance.noKillCooldown = YES;
         instance.alwaysCanKill = YES;
@@ -53,12 +49,6 @@
         instance.unlimitedEmergencies = NO;
         instance.noClip = NO;
         instance.playerSpeed = 1.5f;
-        instance.noPhantomCooldown = NO;
-        instance.noShapeshifterCooldown = NO;
-        instance.noEngineerCooldown = NO;
-        instance.noDetectiveCooldown = NO;
-        instance.noTrackerCooldown = NO;
-        instance.noGuardianAngelCooldown = NO;
         instance.unlockAllIAP = NO;
     });
     return instance;
@@ -173,9 +163,7 @@
         @"💨 Always Can Vent", @"🌀 No Vent Cooldown", @"⚡ Always Can Sabotage",
         @"📢 Always Can Report", @"🔭 Unlimited Vision", @"👻 See Ghosts",
         @"🛡️ God Mode", @"🏃 Fast Speed", @"📞 Unlimited Emergencies",
-        @"🚶 No Clip (Walk Walls)", @"👻 No Phantom Cooldown", @"🔄 No Shapeshifter CD",
-        @"🔧 No Engineer CD", @"🔍 No Detective CD", @"📍 No Tracker CD",
-        @"😇 No Guardian Angel CD", @"🎁 Unlock All IAP"
+        @"🚶 No Clip", @"🎁 Unlock All IAP"
     ];
     
     NSArray *keys = @[
@@ -183,10 +171,7 @@
         @"alwaysCanVent", @"noVentCooldown", @"alwaysCanSabotage",
         @"alwaysCanReport", @"unlimitedVision", @"seeGhosts",
         @"godMode", @"fastSpeed", @"unlimitedEmergencies",
-        @"noClip", @"noPhantomCooldown", @"noShapeshifterCooldown",
-        @"noEngineerCooldown", @"noDetectiveCooldown",
-        @"noTrackerCooldown", @"noGuardianAngelCooldown",
-        @"unlockAllIAP"
+        @"noClip", @"unlockAllIAP"
     ];
     
     CGFloat yPos = 0;
@@ -206,8 +191,8 @@
         
         if ([keys[i] isEqualToString:@"fastSpeed"]) {
             self.speedSlider = [[UISlider alloc] initWithFrame:CGRectMake(190, 8, 80, 28)];
-            self.speedSlider.minimumValue = 1.0f;
-            self.speedSlider.maximumValue = 5.0f;
+            self.speedSlider.minimumValue = 0.5f;
+            self.speedSlider.maximumValue = 3.0f;
             self.speedSlider.value = settings.playerSpeed;
             self.speedSlider.tintColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:1.0];
             [self.speedSlider addTarget:self action:@selector(speedChanged:) forControlEvents:UIControlEventValueChanged];
@@ -250,10 +235,7 @@
         @"alwaysCanVent", @"noVentCooldown", @"alwaysCanSabotage",
         @"alwaysCanReport", @"unlimitedVision", @"seeGhosts",
         @"godMode", @"fastSpeed", @"unlimitedEmergencies",
-        @"noClip", @"noPhantomCooldown", @"noShapeshifterCooldown",
-        @"noEngineerCooldown", @"noDetectiveCooldown",
-        @"noTrackerCooldown", @"noGuardianAngelCooldown",
-        @"unlockAllIAP"
+        @"noClip", @"unlockAllIAP"
     ];
     
     if (sender.tag < keys.count) {
@@ -343,154 +325,284 @@ static void SetupOverlayWindow(void) {
 }
 
 // ============================================================
-// LOGOS HOOKS
+// LOGOS HOOKS - Based on Unity Dump
 // ============================================================
 
+// Based on: NetworkedPlayerInfo (has RoleType property)
+%hook NetworkedPlayerInfo
+
+// Hook role type getter
+- (RoleTypes)get_RoleType {
+    if ([LUBVSettings sharedInstance].alwaysImpostor) {
+        return RoleTypes.Impostor;
+    }
+    return %orig;
+}
+
+// Hook is dead check
+- (bool)get_IsDead {
+    if ([LUBVSettings sharedInstance].godMode) {
+        return false;
+    }
+    return %orig;
+}
+
+%end
+
+// Based on: PlayerControl (from Unity dump)
 %hook PlayerControl
 
-- (BOOL)IsImpostor {
-    return [LUBVSettings sharedInstance].alwaysImpostor ? YES : %orig;
+// IsImpostor property (from dump)
+- (bool)get_IsImpostor {
+    if ([LUBVSettings sharedInstance].alwaysImpostor) {
+        return true;
+    }
+    return %orig;
 }
 
-- (float)GetKillCooldown {
-    return [LUBVSettings sharedInstance].noKillCooldown ? 0.0f : %orig;
+// Hook KillCooldown property
+- (float)get_KillCooldown {
+    if ([LUBVSettings sharedInstance].noKillCooldown) {
+        return 0.0f;
+    }
+    return %orig;
 }
 
-- (void)SetKilled:(id)player {
-    if ([LUBVSettings sharedInstance].godMode) {
+// Hook speed property
+- (float)get_Speed {
+    if ([LUBVSettings sharedInstance].fastSpeed) {
+        return [LUBVSettings sharedInstance].playerSpeed;
+    }
+    return %orig;
+}
+
+// Hook vision radius
+- (float)get_VisionRadius {
+    if ([LUBVSettings sharedInstance].unlimitedVision) {
+        return 999.0f;
+    }
+    return %orig;
+}
+
+// Hook CanMove property
+- (bool)get_CanMove {
+    if ([LUBVSettings sharedInstance].noClip) {
+        return true;
+    }
+    return %orig;
+}
+
+// Hook ghost state
+- (bool)get_IsGhost {
+    if ([LUBVSettings sharedInstance].seeGhosts) {
+        return false;
+    }
+    return %orig;
+}
+
+// Hook kill method
+- (void)MurderPlayer:(id)player {
+    if ([LUBVSettings sharedInstance].godMode && [self get_IsImpostor] == false) {
+        // Allow killing in god mode
+        %orig;
         return;
     }
     %orig;
 }
 
-- (float)GetSpeed {
-    return [LUBVSettings sharedInstance].fastSpeed ? [LUBVSettings sharedInstance].playerSpeed : %orig;
-}
-
-- (float)GetVisionRadius {
-    return [LUBVSettings sharedInstance].unlimitedVision ? 999.0f : %orig;
-}
-
-- (BOOL)IsGhost {
-    return [LUBVSettings sharedInstance].seeGhosts ? NO : %orig;
-}
-
-- (BOOL)CanMove {
-    return [LUBVSettings sharedInstance].noClip ? YES : %orig;
-}
-
 %end
 
+// Based on: Vent
 %hook Vent
 
-- (float)GetCooldown {
-    return [LUBVSettings sharedInstance].noVentCooldown ? 0.0f : %orig;
+// Hook CanUse
+- (bool)get_CanUse {
+    if ([LUBVSettings sharedInstance].alwaysCanVent) {
+        return true;
+    }
+    return %orig;
 }
 
-- (BOOL)CanUse {
-    return [LUBVSettings sharedInstance].alwaysCanVent ? YES : %orig;
-}
-
-%end
-
-%hook SabotageManager
-
-- (BOOL)CanSabotage {
-    return [LUBVSettings sharedInstance].alwaysCanSabotage ? YES : %orig;
-}
-
-%end
-
-%hook KillButtonManager
-
-- (BOOL)CanKill {
-    return [LUBVSettings sharedInstance].alwaysCanKill ? YES : %orig;
+// Hook cooldown
+- (float)get_Cooldown {
+    if ([LUBVSettings sharedInstance].noVentCooldown) {
+        return 0.0f;
+    }
+    return %orig;
 }
 
 %end
 
+// Based on: SabotageManager / SwitchSystem (from dump)
+%hook SwitchSystem
+
+// Hook sabotage availability
+- (bool)get_IsActive {
+    if ([LUBVSettings sharedInstance].alwaysCanSabotage) {
+        return true;
+    }
+    return %orig;
+}
+
+%end
+
+// Based on: KillButton (from dump)
+%hook KillButton
+
+// Hook CanKill
+- (bool)get_CanKill {
+    if ([LUBVSettings sharedInstance].alwaysCanKill) {
+        return true;
+    }
+    return %orig;
+}
+
+%end
+
+// Based on: MeetingHud
 %hook MeetingHud
 
-- (BOOL)CanReport {
-    return [LUBVSettings sharedInstance].alwaysCanReport ? YES : %orig;
+// Hook report availability
+- (bool)get_CanReport {
+    if ([LUBVSettings sharedInstance].alwaysCanReport) {
+        return true;
+    }
+    return %orig;
 }
 
 %end
 
+// Based on: EmergencyButton (from dump)
 %hook EmergencyButton
 
-- (int)GetRemainingUses {
-    return [LUBVSettings sharedInstance].unlimitedEmergencies ? 99 : %orig;
+// Hook emergency count
+- (int)get_RemainingUses {
+    if ([LUBVSettings sharedInstance].unlimitedEmergencies) {
+        return 99;
+    }
+    return %orig;
 }
 
-- (BOOL)CanUse {
-    return [LUBVSettings sharedInstance].unlimitedEmergencies ? YES : %orig;
+- (bool)get_CanUse {
+    if ([LUBVSettings sharedInstance].unlimitedEmergencies) {
+        return true;
+    }
+    return %orig;
 }
 
 %end
 
-%hook PhantomRole
-- (float)GetCooldown {
-    return [LUBVSettings sharedInstance].noPhantomCooldown ? 0.0f : %orig;
-}
-%end
-
-%hook ShapeshifterRole
-- (float)GetCooldown {
-    return [LUBVSettings sharedInstance].noShapeshifterCooldown ? 0.0f : %orig;
-}
-%end
-
-%hook EngineerRole
-- (float)GetCooldown {
-    return [LUBVSettings sharedInstance].noEngineerCooldown ? 0.0f : %orig;
-}
-%end
-
-%hook DetectiveRole
-- (float)GetCooldown {
-    return [LUBVSettings sharedInstance].noDetectiveCooldown ? 0.0f : %orig;
-}
-%end
-
-%hook TrackerRole
-- (float)GetCooldown {
-    return [LUBVSettings sharedInstance].noTrackerCooldown ? 0.0f : %orig;
-}
-%end
-
-%hook GuardianAngelRole
-- (float)GetCooldown {
-    return [LUBVSettings sharedInstance].noGuardianAngelCooldown ? 0.0f : %orig;
-}
-%end
-
+// Based on: HatManager (from dump)
 %hook HatManager
-- (BOOL)IsHatUnlocked:(id)hat {
-    return [LUBVSettings sharedInstance].unlockAllIAP ? YES : %orig;
+
+// Hook hat unlock check
+- (bool)get_IsHatUnlocked:(id)hat {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return true;
+    }
+    return %orig;
+}
+
+%end
+
+// Based on: PetData
+%hook PetData
+
+// Hook pet unlock
+- (bool)get_IsEmpty {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return false;
+    }
+    return %orig;
+}
+
+%end
+
+// Based on: SkinData
+%hook SkinData
+
+// Hook skin unlock
+- (bool)get_IsEmpty {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return false;
+    }
+    return %orig;
+}
+
+%end
+
+// Based on: VisorData
+%hook VisorData
+
+// Hook visor unlock
+- (bool)get_IsEmpty {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return false;
+    }
+    return %orig;
+}
+
+%end
+
+// Based on: NamePlateData
+%hook NamePlateData
+
+// Hook nameplate unlock
+- (bool)get_IsEmpty {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return false;
+    }
+    return %orig;
+}
+
+%end
+
+// ============================================================
+// ROLE COOLDOWN HOOKS (from dump)
+// ============================================================
+
+// PhantomRole (if exists)
+%hook PhantomRole
+- (float)get_Cooldown {
+    if ([LUBVSettings sharedInstance].noPhantomCooldown) {
+        return 0.0f;
+    }
+    return %orig;
 }
 %end
 
-%hook PetManager
-- (BOOL)IsPetUnlocked:(id)pet {
-    return [LUBVSettings sharedInstance].unlockAllIAP ? YES : %orig;
+// ShapeshifterRole (if exists)
+%hook ShapeshifterRole
+- (float)get_Cooldown {
+    if ([LUBVSettings sharedInstance].noShapeshifterCooldown) {
+        return 0.0f;
+    }
+    return %orig;
 }
 %end
 
-%hook SkinManager
-- (BOOL)IsSkinUnlocked:(id)skin {
-    return [LUBVSettings sharedInstance].unlockAllIAP ? YES : %orig;
+// EngineerRole (if exists)
+%hook EngineerRole
+- (float)get_Cooldown {
+    if ([LUBVSettings sharedInstance].noEngineerCooldown) {
+        return 0.0f;
+    }
+    return %orig;
 }
 %end
 
-%hook VisorManager
-- (BOOL)IsVisorUnlocked:(id)visor {
-    return [LUBVSettings sharedInstance].unlockAllIAP ? YES : %orig;
-}
-%end
+// ============================================================
+// IAP UNLOCK FOR INVENTORY MANAGER (from dump)
+// ============================================================
 
-%hook NamePlateManager
-- (BOOL)IsNamePlateUnlocked:(id)nameplate {
-    return [LUBVSettings sharedInstance].unlockAllIAP ? YES : %orig;
+%hook InventoryManager
+
+// Hook item purchase check
+- (bool)GetPurchase:(id)itemKey bundleKey:(id)bundleKey {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return true;
+    }
+    return %orig;
 }
+
 %end
