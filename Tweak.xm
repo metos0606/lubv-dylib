@@ -1,6 +1,7 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 #import <substrate.h>
+#import <mach-o/dyld.h>
 
 // ============================================================
 // SETTINGS MANAGER
