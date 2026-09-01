@@ -1,12 +1,7 @@
-// LUBV Ultimate - Complete Edition (Fixed GUI & Logos Hooks)
+// LUBV Ultimate - Complete Edition (Fixed Logos Hooks & GUI)
 
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
-
-// If compiling as a Logos tweak (.x / .xm file), substrate headers are handled by the compiler.
-#ifndef %hook
-    #import <substrate.h>
-#endif
 
 // ============================================================
 // SETTINGS MANAGER
@@ -320,7 +315,7 @@
 
 static LUBVGUIButton *guiButton = nil;
 
-static void SetupOverlayWindow() {
+static void SetupOverlayWindow(void) {
     UIWindow *targetWindow = nil;
     
     for (UIWindow *window in [UIApplication sharedApplication].windows) {
@@ -341,7 +336,7 @@ static void SetupOverlayWindow() {
     }
 }
 
-__attribute__((constructor)) static void initialize() {
+%ctor {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         SetupOverlayWindow();
     });
@@ -362,7 +357,9 @@ __attribute__((constructor)) static void initialize() {
 }
 
 - (void)SetKilled:(id)player {
-    if ([LUBVSettings sharedInstance].godMode) return;
+    if ([LUBVSettings sharedInstance].godMode) {
+        return;
+    }
     %orig;
 }
 
@@ -433,45 +430,67 @@ __attribute__((constructor)) static void initialize() {
 %end
 
 %hook PhantomRole
-- (float)GetCooldown { return [LUBVSettings sharedInstance].noPhantomCooldown ? 0.0f : %orig; }
+- (float)GetCooldown {
+    return [LUBVSettings sharedInstance].noPhantomCooldown ? 0.0f : %orig;
+}
 %end
 
 %hook ShapeshifterRole
-- (float)GetCooldown { return [LUBVSettings sharedInstance].noShapeshifterCooldown ? 0.0f : %orig; }
+- (float)GetCooldown {
+    return [LUBVSettings sharedInstance].noShapeshifterCooldown ? 0.0f : %orig;
+}
 %end
 
 %hook EngineerRole
-- (float)GetCooldown { return [LUBVSettings sharedInstance].noEngineerCooldown ? 0.0f : %orig; }
+- (float)GetCooldown {
+    return [LUBVSettings sharedInstance].noEngineerCooldown ? 0.0f : %orig;
+}
 %end
 
 %hook DetectiveRole
-- (float)GetCooldown { return [LUBVSettings sharedInstance].noDetectiveCooldown ? 0.0f : %orig; }
+- (float)GetCooldown {
+    return [LUBVSettings sharedInstance].noDetectiveCooldown ? 0.0f : %orig;
+}
 %end
 
 %hook TrackerRole
-- (float)GetCooldown { return [LUBVSettings sharedInstance].noTrackerCooldown ? 0.0f : %orig; }
+- (float)GetCooldown {
+    return [LUBVSettings sharedInstance].noTrackerCooldown ? 0.0f : %orig;
+}
 %end
 
 %hook GuardianAngelRole
-- (float)GetCooldown { return [LUBVSettings sharedInstance].noGuardianAngelCooldown ? 0.0f : %orig; }
+- (float)GetCooldown {
+    return [LUBVSettings sharedInstance].noGuardianAngelCooldown ? 0.0f : %orig;
+}
 %end
 
 %hook HatManager
-- (BOOL)IsHatUnlocked:(id)hat { return [LUBVSettings sharedInstance].unlockAllIAP ? YES : %orig; }
+- (BOOL)IsHatUnlocked:(id)hat {
+    return [LUBVSettings sharedInstance].unlockAllIAP ? YES : %orig;
+}
 %end
 
 %hook PetManager
-- (BOOL)IsPetUnlocked:(id)pet { return [LUBVSettings sharedInstance].unlockAllIAP ? YES : %orig; }
+- (BOOL)IsPetUnlocked:(id)pet {
+    return [LUBVSettings sharedInstance].unlockAllIAP ? YES : %orig;
+}
 %end
 
 %hook SkinManager
-- (BOOL)IsSkinUnlocked:(id)skin { return [LUBVSettings sharedInstance].unlockAllIAP ? YES : %orig; }
+- (BOOL)IsSkinUnlocked:(id)skin {
+    return [LUBVSettings sharedInstance].unlockAllIAP ? YES : %orig;
+}
 %end
 
 %hook VisorManager
-- (BOOL)IsVisorUnlocked:(id)visor { return [LUBVSettings sharedInstance].unlockAllIAP ? YES : %orig; }
+- (BOOL)IsVisorUnlocked:(id)visor {
+    return [LUBVSettings sharedInstance].unlockAllIAP ? YES : %orig;
+}
 %end
 
 %hook NamePlateManager
-- (BOOL)IsNamePlateUnlocked:(id)nameplate { return [LUBVSettings sharedInstance].unlockAllIAP ? YES : %orig; }
+- (BOOL)IsNamePlateUnlocked:(id)nameplate {
+    return [LUBVSettings sharedInstance].unlockAllIAP ? YES : %orig;
+}
 %end
