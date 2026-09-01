@@ -1,25 +1,6 @@
-// LUBV Ultimate - Complete Edition (Fixed All Errors)
-
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 #import <substrate.h>
-
-// ============================================================
-// ROLE TYPES ENUM (From Unity Dump)
-// ============================================================
-
-typedef enum {
-    RoleTypes_Crewmate = 0,
-    RoleTypes_Impostor = 1,
-    RoleTypes_Scientist = 2,
-    RoleTypes_Engineer = 3,
-    RoleTypes_GuardianAngel = 4,
-    RoleTypes_Shapeshifter = 5,
-    RoleTypes_Phantom = 6,
-    RoleTypes_Tracker = 7,
-    RoleTypes_Detective = 8,
-    RoleTypes_NoRole = 9
-} RoleTypes;
 
 // ============================================================
 // SETTINGS MANAGER
@@ -71,24 +52,6 @@ typedef enum {
 }
 
 @end
-
-// ============================================================
-// FORWARD DECLARATIONS
-// ============================================================
-
-@class PlayerControl;
-@class NetworkedPlayerInfo;
-@class Vent;
-@class SwitchSystem;
-@class KillButton;
-@class MeetingHud;
-@class EmergencyButton;
-@class HatManager;
-@class PetData;
-@class SkinData;
-@class VisorData;
-@class NamePlateData;
-@class InventoryManager;
 
 // ============================================================
 // GUI BUTTON & CONTROL PANEL
@@ -326,7 +289,7 @@ typedef enum {
 @end
 
 // ============================================================
-// INJECT GUI OVERLAY
+// OVERLAY INITIALIZATION
 // ============================================================
 
 static LUBVGUIButton *guiButton = nil;
@@ -352,237 +315,178 @@ static void SetupOverlayWindow(void) {
     }
 }
 
-%ctor {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        SetupOverlayWindow();
-    });
-}
-
 // ============================================================
-// LOGOS HOOKS - Based on Unity Dump
+// IL2CPP HOOK DEFINITIONS & FUNCTION POINTERS
 // ============================================================
 
-// Hook: NetworkedPlayerInfo - Role type
-%hook NetworkedPlayerInfo
+// Original function pointers
+static int (*orig_NetworkedPlayerInfo_get_RoleType)(void *instance);
+static bool (*orig_NetworkedPlayerInfo_get_IsDead)(void *instance);
+static bool (*orig_PlayerControl_get_IsImpostor)(void *instance);
+static float (*orig_PlayerControl_get_KillCooldown)(void *instance);
+static float (*orig_PlayerControl_get_Speed)(void *instance);
+static float (*orig_PlayerControl_get_VisionRadius)(void *instance);
+static bool (*orig_PlayerControl_get_CanMove)(void *instance);
+static bool (*orig_PlayerControl_get_IsGhost)(void *instance);
+static bool (*orig_Vent_get_CanUse)(void *instance);
+static float (*orig_Vent_get_Cooldown)(void *instance);
+static bool (*orig_SwitchSystem_get_IsActive)(void *instance);
+static bool (*orig_KillButton_get_CanKill)(void *instance);
+static bool (*orig_MeetingHud_get_CanReport)(void *instance);
+static int (*orig_EmergencyButton_get_RemainingUses)(void *instance);
+static bool (*orig_EmergencyButton_get_CanUse)(void *instance);
+static bool (*orig_HatManager_IsHatUnlocked)(void *instance, void *hat);
+static bool (*orig_Inventory_GetPurchase)(void *instance, void *itemKey, void *bundleKey);
 
-// Get role type
-- (int)get_RoleType {
+// Custom hook functions
+int hk_NetworkedPlayerInfo_get_RoleType(void *instance) {
     if ([LUBVSettings sharedInstance].alwaysImpostor) {
-        return RoleTypes_Impostor;
+        return 1; // RoleTypes.Impostor
     }
-    return %orig;
+    return orig_NetworkedPlayerInfo_get_RoleType ? orig_NetworkedPlayerInfo_get_RoleType(instance) : 0;
 }
 
-// Get is dead
-- (BOOL)get_IsDead {
+bool hk_NetworkedPlayerInfo_get_IsDead(void *instance) {
     if ([LUBVSettings sharedInstance].godMode) {
-        return NO;
+        return false;
     }
-    return %orig;
+    return orig_NetworkedPlayerInfo_get_IsDead ? orig_NetworkedPlayerInfo_get_IsDead(instance) : false;
 }
 
-%end
-
-// Hook: PlayerControl
-%hook PlayerControl
-
-// Get is impostor
-- (BOOL)get_IsImpostor {
+bool hk_PlayerControl_get_IsImpostor(void *instance) {
     if ([LUBVSettings sharedInstance].alwaysImpostor) {
-        return YES;
+        return true;
     }
-    return %orig;
+    return orig_PlayerControl_get_IsImpostor ? orig_PlayerControl_get_IsImpostor(instance) : false;
 }
 
-// Get kill cooldown
-- (float)get_KillCooldown {
+float hk_PlayerControl_get_KillCooldown(void *instance) {
     if ([LUBVSettings sharedInstance].noKillCooldown) {
         return 0.0f;
     }
-    return %orig;
+    return orig_PlayerControl_get_KillCooldown ? orig_PlayerControl_get_KillCooldown(instance) : 0.0f;
 }
 
-// Get speed
-- (float)get_Speed {
+float hk_PlayerControl_get_Speed(void *instance) {
     if ([LUBVSettings sharedInstance].fastSpeed) {
         return [LUBVSettings sharedInstance].playerSpeed;
     }
-    return %orig;
+    return orig_PlayerControl_get_Speed ? orig_PlayerControl_get_Speed(instance) : 1.0f;
 }
 
-// Get vision radius
-- (float)get_VisionRadius {
+float hk_PlayerControl_get_VisionRadius(void *instance) {
     if ([LUBVSettings sharedInstance].unlimitedVision) {
         return 999.0f;
     }
-    return %orig;
+    return orig_PlayerControl_get_VisionRadius ? orig_PlayerControl_get_VisionRadius(instance) : 1.0f;
 }
 
-// Get can move
-- (BOOL)get_CanMove {
+bool hk_PlayerControl_get_CanMove(void *instance) {
     if ([LUBVSettings sharedInstance].noClip) {
-        return YES;
+        return true;
     }
-    return %orig;
+    return orig_PlayerControl_get_CanMove ? orig_PlayerControl_get_CanMove(instance) : true;
 }
 
-// Get is ghost
-- (BOOL)get_IsGhost {
+bool hk_PlayerControl_get_IsGhost(void *instance) {
     if ([LUBVSettings sharedInstance].seeGhosts) {
-        return NO;
+        return false;
     }
-    return %orig;
+    return orig_PlayerControl_get_IsGhost ? orig_PlayerControl_get_IsGhost(instance) : false;
 }
 
-// Murder player
-- (void)MurderPlayer:(id)player {
-    // Allow murder in god mode even as crewmate
-    %orig;
-}
-
-%end
-
-// Hook: Vent
-%hook Vent
-
-// Get can use
-- (BOOL)get_CanUse {
+bool hk_Vent_get_CanUse(void *instance) {
     if ([LUBVSettings sharedInstance].alwaysCanVent) {
-        return YES;
+        return true;
     }
-    return %orig;
+    return orig_Vent_get_CanUse ? orig_Vent_get_CanUse(instance) : false;
 }
 
-// Get cooldown
-- (float)get_Cooldown {
+float hk_Vent_get_Cooldown(void *instance) {
     if ([LUBVSettings sharedInstance].noVentCooldown) {
         return 0.0f;
     }
-    return %orig;
+    return orig_Vent_get_Cooldown ? orig_Vent_get_Cooldown(instance) : 0.0f;
 }
 
-%end
-
-// Hook: SwitchSystem
-%hook SwitchSystem
-
-// Get is active
-- (BOOL)get_IsActive {
+bool hk_SwitchSystem_get_IsActive(void *instance) {
     if ([LUBVSettings sharedInstance].alwaysCanSabotage) {
-        return YES;
+        return true;
     }
-    return %orig;
+    return orig_SwitchSystem_get_IsActive ? orig_SwitchSystem_get_IsActive(instance) : false;
 }
 
-%end
-
-// Hook: KillButton
-%hook KillButton
-
-// Get can kill
-- (BOOL)get_CanKill {
+bool hk_KillButton_get_CanKill(void *instance) {
     if ([LUBVSettings sharedInstance].alwaysCanKill) {
-        return YES;
+        return true;
     }
-    return %orig;
+    return orig_KillButton_get_CanKill ? orig_KillButton_get_CanKill(instance) : false;
 }
 
-%end
-
-// Hook: MeetingHud
-%hook MeetingHud
-
-// Get can report
-- (BOOL)get_CanReport {
+bool hk_MeetingHud_get_CanReport(void *instance) {
     if ([LUBVSettings sharedInstance].alwaysCanReport) {
-        return YES;
+        return true;
     }
-    return %orig;
+    return orig_MeetingHud_get_CanReport ? orig_MeetingHud_get_CanReport(instance) : false;
 }
 
-%end
-
-// Hook: EmergencyButton
-%hook EmergencyButton
-
-// Get remaining uses
-- (int)get_RemainingUses {
+int hk_EmergencyButton_get_RemainingUses(void *instance) {
     if ([LUBVSettings sharedInstance].unlimitedEmergencies) {
         return 99;
     }
-    return %orig;
+    return orig_EmergencyButton_get_RemainingUses ? orig_EmergencyButton_get_RemainingUses(instance) : 0;
 }
 
-// Get can use
-- (BOOL)get_CanUse {
+bool hk_EmergencyButton_get_CanUse(void *instance) {
     if ([LUBVSettings sharedInstance].unlimitedEmergencies) {
-        return YES;
+        return true;
     }
-    return %orig;
+    return orig_EmergencyButton_get_CanUse ? orig_EmergencyButton_get_CanUse(instance) : false;
 }
 
-%end
+bool hk_HatManager_IsHatUnlocked(void *instance, void *hat) {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return true;
+    }
+    return orig_HatManager_IsHatUnlocked ? orig_HatManager_IsHatUnlocked(instance, hat) : false;
+}
+
+bool hk_Inventory_GetPurchase(void *instance, void *itemKey, void *bundleKey) {
+    if ([LUBVSettings sharedInstance].unlockAllIAP) {
+        return true;
+    }
+    return orig_Inventory_GetPurchase ? orig_Inventory_GetPurchase(instance, itemKey, bundleKey) : false;
+}
 
 // ============================================================
-// COSMETIC UNLOCK HOOKS
+// CONSTRUCTOR & HOOK ATTACHMENT
 // ============================================================
 
-// Hook: HatManager
-%hook HatManager
-- (BOOL)IsHatUnlocked:(id)hat {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
+%ctor {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        SetupOverlayWindow();
+        
+        // NOTE: Replace these placeholder offsets with the exact offsets generated by Il2CppDumper for your game binary.
+        uintptr_t baseAddress = (uintptr_t)_dyld_get_image_header(0);
+        
+        /* Example offsets:
+        MSHookFunction((void *)(baseAddress + 0x102A0B0), (void *)hk_NetworkedPlayerInfo_get_RoleType, (void **)&orig_NetworkedPlayerInfo_get_RoleType);
+        MSHookFunction((void *)(baseAddress + 0x102A000), (void *)hk_NetworkedPlayerInfo_get_IsDead, (void **)&orig_NetworkedPlayerInfo_get_IsDead);
+        MSHookFunction((void *)(baseAddress + 0x1031C20), (void *)hk_PlayerControl_get_IsImpostor, (void **)&orig_PlayerControl_get_IsImpostor);
+        MSHookFunction((void *)(baseAddress + 0x1031C50), (void *)hk_PlayerControl_get_KillCooldown, (void **)&orig_PlayerControl_get_KillCooldown);
+        MSHookFunction((void *)(baseAddress + 0x1031D00), (void *)hk_PlayerControl_get_Speed, (void **)&orig_PlayerControl_get_Speed);
+        MSHookFunction((void *)(baseAddress + 0x1031D80), (void *)hk_PlayerControl_get_VisionRadius, (void **)&orig_PlayerControl_get_VisionRadius);
+        MSHookFunction((void *)(baseAddress + 0x1031E00), (void *)hk_PlayerControl_get_CanMove, (void **)&orig_PlayerControl_get_CanMove);
+        MSHookFunction((void *)(baseAddress + 0x1031E80), (void *)hk_PlayerControl_get_IsGhost, (void **)&orig_PlayerControl_get_IsGhost);
+        MSHookFunction((void *)(baseAddress + 0x1080000), (void *)hk_Vent_get_CanUse, (void **)&orig_Vent_get_CanUse);
+        MSHookFunction((void *)(baseAddress + 0x1080050), (void *)hk_Vent_get_Cooldown, (void **)&orig_Vent_get_Cooldown);
+        MSHookFunction((void *)(baseAddress + 0x1055000), (void *)hk_SwitchSystem_get_IsActive, (void **)&orig_SwitchSystem_get_IsActive);
+        MSHookFunction((void *)(baseAddress + 0x1044000), (void *)hk_KillButton_get_CanKill, (void **)&orig_KillButton_get_CanKill);
+        MSHookFunction((void *)(baseAddress + 0x1066000), (void *)hk_MeetingHud_get_CanReport, (void **)&orig_MeetingHud_get_CanReport);
+        MSHookFunction((void *)(baseAddress + 0x1077000), (void *)hk_EmergencyButton_get_RemainingUses, (void **)&orig_EmergencyButton_get_RemainingUses);
+        MSHookFunction((void *)(baseAddress + 0x1077050), (void *)hk_EmergencyButton_get_CanUse, (void **)&orig_EmergencyButton_get_CanUse);
+        MSHookFunction((void *)(baseAddress + 0x1099000), (void *)hk_HatManager_IsHatUnlocked, (void **)&orig_HatManager_IsHatUnlocked);
+        MSHookFunction((void *)(baseAddress + 0x10AA000), (void *)hk_Inventory_GetPurchase, (void **)&orig_Inventory_GetPurchase);
+        */
+    });
 }
-%end
-
-// Hook: PetData
-%hook PetData
-- (BOOL)get_IsEmpty {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return NO;
-    }
-    return %orig;
-}
-%end
-
-// Hook: SkinData
-%hook SkinData
-- (BOOL)get_IsEmpty {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return NO;
-    }
-    return %orig;
-}
-%end
-
-// Hook: VisorData
-%hook VisorData
-- (BOOL)get_IsEmpty {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return NO;
-    }
-    return %orig;
-}
-%end
-
-// Hook: NamePlateData
-%hook NamePlateData
-- (BOOL)get_IsEmpty {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return NO;
-    }
-    return %orig;
-}
-%end
-
-// Hook: InventoryManager
-%hook InventoryManager
-- (BOOL)GetPurchase:(id)itemKey bundleKey:(id)bundleKey {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return YES;
-    }
-    return %orig;
-}
-%end
