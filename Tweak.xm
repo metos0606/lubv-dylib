@@ -112,7 +112,7 @@
     
     CGRect screenBounds = [UIScreen mainScreen].bounds;
     CGFloat menuWidth = 340.0;
-    CGFloat menuHeight = 500.0;
+    CGFloat menuHeight = 450.0;
     
     CGFloat menuX = (screenBounds.size.width - menuWidth) / 2.0;
     CGFloat menuY = (screenBounds.size.height - menuHeight) / 2.0;
@@ -130,7 +130,7 @@
     
     [self.superview addSubview:self.menuView];
     
-    // Header
+    // Title bar
     UIView *titleBar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, menuWidth, 50)];
     [self.menuView addSubview:titleBar];
     
@@ -151,7 +151,7 @@
     [closeBtn addTarget:self action:@selector(toggleMenu) forControlEvents:UIControlEventTouchUpInside];
     [titleBar addSubview:closeBtn];
     
-    // Scroll Area
+    // Scroll view
     self.scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(10, 50, menuWidth - 20, menuHeight - 60)];
     self.scrollView.showsVerticalScrollIndicator = YES;
     [self.menuView addSubview:self.scrollView];
@@ -188,21 +188,21 @@
         [rowView addSubview:label];
         
         if ([keys[i] isEqualToString:@"fastSpeed"]) {
-            self.speedSlider = [[UISlider alloc] initWithFrame:CGRectMake(190, 8, 80, 28)];
+            self.speedSlider = [[UISlider alloc] initWithFrame:CGRectMake(170, 8, 90, 28)];
             self.speedSlider.minimumValue = 0.5f;
-            self.speedSlider.maximumValue = 3.0f;
+            self.speedSlider.maximumValue = 5.0f;
             self.speedSlider.value = settings.playerSpeed;
             self.speedSlider.tintColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:1.0];
             [self.speedSlider addTarget:self action:@selector(speedChanged:) forControlEvents:UIControlEventValueChanged];
             [rowView addSubview:self.speedSlider];
             
-            self.speedLabel = [[UILabel alloc] initWithFrame:CGRectMake(275, 10, 35, 24)];
-            self.speedLabel.text = [NSString stringWithFormat:@"%.1f", self.speedSlider.value];
+            self.speedLabel = [[UILabel alloc] initWithFrame:CGRectMake(265, 10, 40, 24)];
+            self.speedLabel.text = [NSString stringWithFormat:@"%.1fx", self.speedSlider.value];
             self.speedLabel.textColor = [UIColor whiteColor];
             self.speedLabel.font = [UIFont systemFontOfSize:11];
             [rowView addSubview:self.speedLabel];
         } else {
-            UISwitch *switchControl = [[UISwitch alloc] initWithFrame:CGRectMake(260, 6, 50, 30)];
+            UISwitch *switchControl = [[UISwitch alloc] initWithFrame:CGRectMake(250, 6, 50, 30)];
             switchControl.tag = i;
             switchControl.onTintColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:1.0];
             [switchControl addTarget:self action:@selector(switchToggled:) forControlEvents:UIControlEventValueChanged];
@@ -224,7 +224,7 @@
     LUBVSettings *settings = [LUBVSettings sharedInstance];
     settings.playerSpeed = sender.value;
     settings.fastSpeed = YES;
-    self.speedLabel.text = [NSString stringWithFormat:@"%.1f", sender.value];
+    self.speedLabel.text = [NSString stringWithFormat:@"%.1fx", sender.value];
 }
 
 - (void)switchToggled:(UISwitch *)sender {
@@ -280,17 +280,10 @@
     [gesture setTranslation:CGPointZero inView:self.superview];
 }
 
-- (void)dealloc {
-    if (self.menuView) {
-        [self.menuView removeFromSuperview];
-        self.menuView = nil;
-    }
-}
-
 @end
 
 // ============================================================
-// OVERLAY INITIALIZATION
+// OVERLAY WINDOW ATTACHMENT
 // ============================================================
 
 static LUBVGUIButton *guiButton = nil;
@@ -317,40 +310,13 @@ static void SetupOverlayWindow(void) {
 }
 
 // ============================================================
-// IL2CPP HOOK DEFINITIONS & FUNCTION POINTERS
+// HOOK IMPLEMENTATIONS & DYNAMIC SYMBOL RESOLUTION
 // ============================================================
 
-static int (*orig_NetworkedPlayerInfo_get_RoleType)(void *instance);
-static bool (*orig_NetworkedPlayerInfo_get_IsDead)(void *instance);
 static bool (*orig_PlayerControl_get_IsImpostor)(void *instance);
-static float (*orig_PlayerControl_get_KillCooldown)(void *instance);
-static float (*orig_PlayerControl_get_Speed)(void *instance);
+static float (*orig_PlayerControl_get_KillTimer)(void *instance);
 static float (*orig_PlayerControl_get_VisionRadius)(void *instance);
-static bool (*orig_PlayerControl_get_CanMove)(void *instance);
-static bool (*orig_PlayerControl_get_IsGhost)(void *instance);
-static bool (*orig_Vent_get_CanUse)(void *instance);
-static float (*orig_Vent_get_Cooldown)(void *instance);
-static bool (*orig_SwitchSystem_get_IsActive)(void *instance);
-static bool (*orig_KillButton_get_CanKill)(void *instance);
-static bool (*orig_MeetingHud_get_CanReport)(void *instance);
-static int (*orig_EmergencyButton_get_RemainingUses)(void *instance);
-static bool (*orig_EmergencyButton_get_CanUse)(void *instance);
 static bool (*orig_HatManager_IsHatUnlocked)(void *instance, void *hat);
-static bool (*orig_Inventory_GetPurchase)(void *instance, void *itemKey, void *bundleKey);
-
-int hk_NetworkedPlayerInfo_get_RoleType(void *instance) {
-    if ([LUBVSettings sharedInstance].alwaysImpostor) {
-        return 1;
-    }
-    return orig_NetworkedPlayerInfo_get_RoleType ? orig_NetworkedPlayerInfo_get_RoleType(instance) : 0;
-}
-
-bool hk_NetworkedPlayerInfo_get_IsDead(void *instance) {
-    if ([LUBVSettings sharedInstance].godMode) {
-        return false;
-    }
-    return orig_NetworkedPlayerInfo_get_IsDead ? orig_NetworkedPlayerInfo_get_IsDead(instance) : false;
-}
 
 bool hk_PlayerControl_get_IsImpostor(void *instance) {
     if ([LUBVSettings sharedInstance].alwaysImpostor) {
@@ -359,18 +325,11 @@ bool hk_PlayerControl_get_IsImpostor(void *instance) {
     return orig_PlayerControl_get_IsImpostor ? orig_PlayerControl_get_IsImpostor(instance) : false;
 }
 
-float hk_PlayerControl_get_KillCooldown(void *instance) {
+float hk_PlayerControl_get_KillTimer(void *instance) {
     if ([LUBVSettings sharedInstance].noKillCooldown) {
         return 0.0f;
     }
-    return orig_PlayerControl_get_KillCooldown ? orig_PlayerControl_get_KillCooldown(instance) : 0.0f;
-}
-
-float hk_PlayerControl_get_Speed(void *instance) {
-    if ([LUBVSettings sharedInstance].fastSpeed) {
-        return [LUBVSettings sharedInstance].playerSpeed;
-    }
-    return orig_PlayerControl_get_Speed ? orig_PlayerControl_get_Speed(instance) : 1.0f;
+    return orig_PlayerControl_get_KillTimer ? orig_PlayerControl_get_KillTimer(instance) : 0.0f;
 }
 
 float hk_PlayerControl_get_VisionRadius(void *instance) {
@@ -380,69 +339,6 @@ float hk_PlayerControl_get_VisionRadius(void *instance) {
     return orig_PlayerControl_get_VisionRadius ? orig_PlayerControl_get_VisionRadius(instance) : 1.0f;
 }
 
-bool hk_PlayerControl_get_CanMove(void *instance) {
-    if ([LUBVSettings sharedInstance].noClip) {
-        return true;
-    }
-    return orig_PlayerControl_get_CanMove ? orig_PlayerControl_get_CanMove(instance) : true;
-}
-
-bool hk_PlayerControl_get_IsGhost(void *instance) {
-    if ([LUBVSettings sharedInstance].seeGhosts) {
-        return false;
-    }
-    return orig_PlayerControl_get_IsGhost ? orig_PlayerControl_get_IsGhost(instance) : false;
-}
-
-bool hk_Vent_get_CanUse(void *instance) {
-    if ([LUBVSettings sharedInstance].alwaysCanVent) {
-        return true;
-    }
-    return orig_Vent_get_CanUse ? orig_Vent_get_CanUse(instance) : false;
-}
-
-float hk_Vent_get_Cooldown(void *instance) {
-    if ([LUBVSettings sharedInstance].noVentCooldown) {
-        return 0.0f;
-    }
-    return orig_Vent_get_Cooldown ? orig_Vent_get_Cooldown(instance) : 0.0f;
-}
-
-bool hk_SwitchSystem_get_IsActive(void *instance) {
-    if ([LUBVSettings sharedInstance].alwaysCanSabotage) {
-        return true;
-    }
-    return orig_SwitchSystem_get_IsActive ? orig_SwitchSystem_get_IsActive(instance) : false;
-}
-
-bool hk_KillButton_get_CanKill(void *instance) {
-    if ([LUBVSettings sharedInstance].alwaysCanKill) {
-        return true;
-    }
-    return orig_KillButton_get_CanKill ? orig_KillButton_get_CanKill(instance) : false;
-}
-
-bool hk_MeetingHud_get_CanReport(void *instance) {
-    if ([LUBVSettings sharedInstance].alwaysCanReport) {
-        return true;
-    }
-    return orig_MeetingHud_get_CanReport ? orig_MeetingHud_get_CanReport(instance) : false;
-}
-
-int hk_EmergencyButton_get_RemainingUses(void *instance) {
-    if ([LUBVSettings sharedInstance].unlimitedEmergencies) {
-        return 99;
-    }
-    return orig_EmergencyButton_get_RemainingUses ? orig_EmergencyButton_get_RemainingUses(instance) : 0;
-}
-
-bool hk_EmergencyButton_get_CanUse(void *instance) {
-    if ([LUBVSettings sharedInstance].unlimitedEmergencies) {
-        return true;
-    }
-    return orig_EmergencyButton_get_CanUse ? orig_EmergencyButton_get_CanUse(instance) : false;
-}
-
 bool hk_HatManager_IsHatUnlocked(void *instance, void *hat) {
     if ([LUBVSettings sharedInstance].unlockAllIAP) {
         return true;
@@ -450,42 +346,26 @@ bool hk_HatManager_IsHatUnlocked(void *instance, void *hat) {
     return orig_HatManager_IsHatUnlocked ? orig_HatManager_IsHatUnlocked(instance, hat) : false;
 }
 
-bool hk_Inventory_GetPurchase(void *instance, void *itemKey, void *bundleKey) {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return true;
-    }
-    return orig_Inventory_GetPurchase ? orig_Inventory_GetPurchase(instance, itemKey, bundleKey) : false;
+// Helper to resolve dynamically from il2cpp
+static uintptr_t GetImageBaseAddress(void) {
+    return (uintptr_t)_dyld_get_image_header(0);
 }
 
-// ============================================================
-// CONSTRUCTOR & HOOK ATTACHMENT
-// ============================================================
+// Function hook loader via Base Address offsets generated by Il2CppDumper
+static void InitializeHooks(void) {
+    uintptr_t base = GetImageBaseAddress();
+    
+    // Replace offsets below with the RVA numbers found in script.json or dump.cs
+    // MSHookFunction((void *)(base + 0x1031C20), (void *)hk_PlayerControl_get_IsImpostor, (void **)&orig_PlayerControl_get_IsImpostor);
+    // MSHookFunction((void *)(base + 0x1031C50), (void *)hk_PlayerControl_get_KillTimer, (void **)&orig_PlayerControl_get_KillTimer);
+    // MSHookFunction((void *)(base + 0x1031D80), (void *)hk_PlayerControl_get_VisionRadius, (void **)&orig_PlayerControl_get_VisionRadius);
+    // MSHookFunction((void *)(base + 0x1099000), (void *)hk_HatManager_IsHatUnlocked, (void **)&orig_HatManager_IsHatUnlocked);
+}
 
+// Constructor initialization
 %ctor {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         SetupOverlayWindow();
-        
-        uintptr_t baseAddress = (uintptr_t)_dyld_get_image_header(0);
-        (void)baseAddress; // Suppresses unused variable warning under -Werror
-        
-        /* Replace with exact binary offsets extracted via Il2CppDumper:
-        MSHookFunction((void *)(baseAddress + 0x102A0B0), (void *)hk_NetworkedPlayerInfo_get_RoleType, (void **)&orig_NetworkedPlayerInfo_get_RoleType);
-        MSHookFunction((void *)(baseAddress + 0x102A000), (void *)hk_NetworkedPlayerInfo_get_IsDead, (void **)&orig_NetworkedPlayerInfo_get_IsDead);
-        MSHookFunction((void *)(baseAddress + 0x1031C20), (void *)hk_PlayerControl_get_IsImpostor, (void **)&orig_PlayerControl_get_IsImpostor);
-        MSHookFunction((void *)(baseAddress + 0x1031C50), (void *)hk_PlayerControl_get_KillCooldown, (void **)&orig_PlayerControl_get_KillCooldown);
-        MSHookFunction((void *)(baseAddress + 0x1031D00), (void *)hk_PlayerControl_get_Speed, (void **)&orig_PlayerControl_get_Speed);
-        MSHookFunction((void *)(baseAddress + 0x1031D80), (void *)hk_PlayerControl_get_VisionRadius, (void **)&orig_PlayerControl_get_VisionRadius);
-        MSHookFunction((void *)(baseAddress + 0x1031E00), (void *)hk_PlayerControl_get_CanMove, (void **)&orig_PlayerControl_get_CanMove);
-        MSHookFunction((void *)(baseAddress + 0x1031E80), (void *)hk_PlayerControl_get_IsGhost, (void **)&orig_PlayerControl_get_IsGhost);
-        MSHookFunction((void *)(baseAddress + 0x1080000), (void *)hk_Vent_get_CanUse, (void **)&orig_Vent_get_CanUse);
-        MSHookFunction((void *)(baseAddress + 0x1080050), (void *)hk_Vent_get_Cooldown, (void **)&orig_Vent_get_Cooldown);
-        MSHookFunction((void *)(baseAddress + 0x1055000), (void *)hk_SwitchSystem_get_IsActive, (void **)&orig_SwitchSystem_get_IsActive);
-        MSHookFunction((void *)(baseAddress + 0x1044000), (void *)hk_KillButton_get_CanKill, (void **)&orig_KillButton_get_CanKill);
-        MSHookFunction((void *)(baseAddress + 0x1066000), (void *)hk_MeetingHud_get_CanReport, (void **)&orig_MeetingHud_get_CanReport);
-        MSHookFunction((void *)(baseAddress + 0x1077000), (void *)hk_EmergencyButton_get_RemainingUses, (void **)&orig_EmergencyButton_get_RemainingUses);
-        MSHookFunction((void *)(baseAddress + 0x1077050), (void *)hk_EmergencyButton_get_CanUse, (void **)&orig_EmergencyButton_get_CanUse);
-        MSHookFunction((void *)(baseAddress + 0x1099000), (void *)hk_HatManager_IsHatUnlocked, (void **)&orig_HatManager_IsHatUnlocked);
-        MSHookFunction((void *)(baseAddress + 0x10AA000), (void *)hk_Inventory_GetPurchase, (void **)&orig_Inventory_GetPurchase);
-        */
+        InitializeHooks();
     });
 }
