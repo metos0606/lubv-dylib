@@ -161,18 +161,18 @@ static char kSettingKeyAssociationKey;
     [self.menuView addSubview:self.scrollView];
     
     NSArray *features = @[
-        @"🎭 Always Impostor", @"⏱️ No Kill Cooldown", @"🗡️ Always Can Kill",
-        @"💨 Always Can Vent", @"🌀 No Vent Cooldown", @"⚡ Always Can Sabotage",
-        @"📢 Always Can Report", @"🔭 Unlimited Vision", @"👻 See Ghosts",
-        @"🛡️ God Mode", @"🏃 Fast Speed", @"📞 Unlimited Emergencies",
+        @"⏱️ No Kill Cooldown", @"🏃 Fast Speed", @"🔭 Unlimited Vision",
+        @"🎭 Always Impostor", @"🗡️ Always Can Kill", @"💨 Always Can Vent",
+        @"🌀 No Vent Cooldown", @"⚡ Always Can Sabotage", @"📢 Always Can Report",
+        @"👻 See Ghosts", @"🛡️ God Mode", @"📞 Unlimited Emergencies",
         @"🚶 No Clip", @"🎁 Unlock All IAP"
     ];
     
     NSArray *keys = @[
-        @"alwaysImpostor", @"noKillCooldown", @"alwaysCanKill",
-        @"alwaysCanVent", @"noVentCooldown", @"alwaysCanSabotage",
-        @"alwaysCanReport", @"unlimitedVision", @"seeGhosts",
-        @"godMode", @"fastSpeed", @"unlimitedEmergencies",
+        @"noKillCooldown", @"fastSpeed", @"unlimitedVision",
+        @"alwaysImpostor", @"alwaysCanKill", @"alwaysCanVent",
+        @"noVentCooldown", @"alwaysCanSabotage", @"alwaysCanReport",
+        @"seeGhosts", @"godMode", @"unlimitedEmergencies",
         @"noClip", @"unlockAllIAP"
     ];
     
@@ -209,7 +209,6 @@ static char kSettingKeyAssociationKey;
             UISwitch *switchControl = [[UISwitch alloc] initWithFrame:CGRectMake(250, 6, 50, 30)];
             switchControl.onTintColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:1.0];
             
-            // Explicitly associate the settings key to the UISwitch instance
             objc_setAssociatedObject(switchControl, &kSettingKeyAssociationKey, keys[i], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
             [switchControl addTarget:self action:@selector(switchToggled:) forControlEvents:UIControlEventValueChanged];
             
@@ -327,60 +326,40 @@ static void SetupOverlayWindow(void) {
 // HOOK IMPLEMENTATIONS & DYNAMIC SYMBOL RESOLUTION
 // ============================================================
 
-static bool (*orig_PlayerControl_get_IsImpostor)(void *instance);
-static float (*orig_PlayerControl_get_KillTimer)(void *instance);
-static float (*orig_PlayerControl_get_VisionRadius)(void *instance);
-static bool (*orig_HatManager_IsHatUnlocked)(void *instance, void *hat);
+static float (*orig_PlayerControl_get_IsKillTimerEnabled)(void *instance);
+static float (*orig_PlayerPhysics_get_TrueSpeed)(void *instance);
 
-bool hk_PlayerControl_get_IsImpostor(void *instance) {
-    if ([LUBVSettings sharedInstance].alwaysImpostor) {
-        return true;
-    }
-    return orig_PlayerControl_get_IsImpostor ? orig_PlayerControl_get_IsImpostor(instance) : false;
-}
-
-float hk_PlayerControl_get_KillTimer(void *instance) {
+float hk_PlayerControl_get_IsKillTimerEnabled(void *instance) {
     if ([LUBVSettings sharedInstance].noKillCooldown) {
         return 0.0f;
     }
-    return orig_PlayerControl_get_KillTimer ? orig_PlayerControl_get_KillTimer(instance) : 0.0f;
+    return orig_PlayerControl_get_IsKillTimerEnabled ? orig_PlayerControl_get_IsKillTimerEnabled(instance) : 0.0f;
 }
 
-float hk_PlayerControl_get_VisionRadius(void *instance) {
-    if ([LUBVSettings sharedInstance].unlimitedVision) {
-        return 999.0f;
+float hk_PlayerPhysics_get_TrueSpeed(void *instance) {
+    if ([LUBVSettings sharedInstance].fastSpeed) {
+        return [LUBVSettings sharedInstance].playerSpeed * 2.5f;
     }
-    return orig_PlayerControl_get_VisionRadius ? orig_PlayerControl_get_VisionRadius(instance) : 1.0f;
+    return orig_PlayerPhysics_get_TrueSpeed ? orig_PlayerPhysics_get_TrueSpeed(instance) : 1.0f;
 }
 
-bool hk_HatManager_IsHatUnlocked(void *instance, void *hat) {
-    if ([LUBVSettings sharedInstance].unlockAllIAP) {
-        return true;
-    }
-    return orig_HatManager_IsHatUnlocked ? orig_HatManager_IsHatUnlocked(instance, hat) : false;
-}
-
-// Safely resolve the main binary header address across dynamic loads
 static uintptr_t GetMainExecutableBaseAddress(void) {
-    uint32_t count = _dyld_image_count();
-    for (uint32_t i = 0; i < count; i++) {
-        const struct mach_header *header = _dyld_get_image_header(i);
-        if (header && header->filetype == MH_EXECUTE) {
-            return (uintptr_t)_dyld_get_image_vmaddr_slide(i) + (uintptr_t)header;
-        }
-    }
     return (uintptr_t)_dyld_get_image_header(0);
 }
 
-// Function hook loader utilizing extracted RVAs
 static void InitializeHooks(void) {
     uintptr_t base = GetMainExecutableBaseAddress();
-    
-    // Apply extracted RVAs directly
-    MSHookFunction((void *)(base + 0x1C51010), (void *)hk_PlayerControl_get_IsImpostor, (void **)&orig_PlayerControl_get_IsImpostor);
-    MSHookFunction((void *)(base + 0x1C50C30), (void *)hk_PlayerControl_get_KillTimer, (void **)&orig_PlayerControl_get_KillTimer);
-    MSHookFunction((void *)(base + 0x1C666EC), (void *)hk_PlayerControl_get_VisionRadius, (void **)&orig_PlayerControl_get_VisionRadius);
-    MSHookFunction((void *)(base + 0x1E7DC94), (void *)hk_HatManager_IsHatUnlocked, (void **)&orig_HatManager_IsHatUnlocked);
+    if (base == 0) return;
+
+    // PlayerControl.get_IsKillTimerEnabled -> 0x1C50C30
+    MSHookFunction((void *)(base + 0x1C50C30), 
+                   (void *)hk_PlayerControl_get_IsKillTimerEnabled, 
+                   (void **)&orig_PlayerControl_get_IsKillTimerEnabled);
+
+    // PlayerPhysics.get_TrueSpeed -> 0x1C666EC
+    MSHookFunction((void *)(base + 0x1C666EC), 
+                   (void *)hk_PlayerPhysics_get_TrueSpeed, 
+                   (void **)&orig_PlayerPhysics_get_TrueSpeed);
 }
 
 // Constructor initialization
