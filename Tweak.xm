@@ -3,10 +3,6 @@
 #import <substrate.h>
 #import <mach-o/dyld.h>
 
-// ============================================================
-// ASSOCIATED OBJECT KEY FOR UI BINDINGS
-// ============================================================
-
 static char kSettingKeyAssociationKey;
 
 // ============================================================
@@ -101,18 +97,12 @@ static char kSettingKeyAssociationKey;
         [self addGestureRecognizer:self.panGesture];
         
         self.isMenuOpen = NO;
-        
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            if (self.superview) {
-                [self createMenu];
-            }
-        });
     }
     return self;
 }
 
 - (void)createMenu {
-    if (self.menuView) return;
+    if (self.menuView || !self.superview) return;
     
     CGRect screenBounds = [UIScreen mainScreen].bounds;
     CGFloat menuWidth = 340.0;
@@ -134,7 +124,6 @@ static char kSettingKeyAssociationKey;
     
     [self.superview addSubview:self.menuView];
     
-    // Title bar
     UIView *titleBar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, menuWidth, 50)];
     [self.menuView addSubview:titleBar];
     
@@ -155,7 +144,6 @@ static char kSettingKeyAssociationKey;
     [closeBtn addTarget:self action:@selector(toggleMenu) forControlEvents:UIControlEventTouchUpInside];
     [titleBar addSubview:closeBtn];
     
-    // Scroll view
     self.scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(10, 50, menuWidth - 20, menuHeight - 60)];
     self.scrollView.showsVerticalScrollIndicator = YES;
     [self.menuView addSubview:self.scrollView];
@@ -287,27 +275,10 @@ static LUBVGUIButton *guiButton = nil;
 static void SetupOverlayWindow(void) {
     UIWindow *targetWindow = nil;
     
-    if (@available(iOS 13.0, *)) {
-        for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
-            if (scene.activationState == UISceneActivationStateForegroundActive &&
-                [scene isKindOfClass:[UIWindowScene class]]) {
-                UIWindowScene *windowScene = (UIWindowScene *)scene;
-                for (UIWindow *window in windowScene.windows) {
-                    if (window.isKeyWindow) {
-                        targetWindow = window;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    
-    if (!targetWindow) {
-        for (UIWindow *window in [UIApplication sharedApplication].windows) {
-            if (window.isKeyWindow) {
-                targetWindow = window;
-                break;
-            }
+    for (UIWindow *window in [UIApplication sharedApplication].windows) {
+        if (window.isKeyWindow) {
+            targetWindow = window;
+            break;
         }
     }
     
@@ -323,48 +294,40 @@ static void SetupOverlayWindow(void) {
 }
 
 // ============================================================
-// HOOK IMPLEMENTATIONS & DYNAMIC SYMBOL RESOLUTION
+// HOOK IMPLEMENTATIONS (CORRECTED TYPES AND SAFETY CHECKS)
 // ============================================================
 
-static float (*orig_PlayerControl_get_IsKillTimerEnabled)(void *instance);
+static bool (*orig_PlayerControl_get_IsKillTimerEnabled)(void *instance);
 static float (*orig_PlayerPhysics_get_TrueSpeed)(void *instance);
 
-float hk_PlayerControl_get_IsKillTimerEnabled(void *instance) {
+// Corrected return type from float to bool
+bool hk_PlayerControl_get_IsKillTimerEnabled(void *instance) {
+    if (!instance) return false;
     if ([LUBVSettings sharedInstance].noKillCooldown) {
-        return 0.0f;
+        return false;
     }
-    return orig_PlayerControl_get_IsKillTimerEnabled ? orig_PlayerControl_get_IsKillTimerEnabled(instance) : 0.0f;
+    return orig_PlayerControl_get_IsKillTimerEnabled ? orig_PlayerControl_get_IsKillTimerEnabled(instance) : false;
 }
 
 float hk_PlayerPhysics_get_TrueSpeed(void *instance) {
+    if (!instance) return 1.0f;
     if ([LUBVSettings sharedInstance].fastSpeed) {
         return [LUBVSettings sharedInstance].playerSpeed * 2.5f;
     }
     return orig_PlayerPhysics_get_TrueSpeed ? orig_PlayerPhysics_get_TrueSpeed(instance) : 1.0f;
 }
 
-static uintptr_t GetMainExecutableBaseAddress(void) {
-    return (uintptr_t)_dyld_get_image_header(0);
-}
-
 static void InitializeHooks(void) {
-    uintptr_t base = GetMainExecutableBaseAddress();
+    uintptr_t base = (uintptr_t)_dyld_get_image_header(0);
     if (base == 0) return;
 
-    // PlayerControl.get_IsKillTimerEnabled -> 0x1C50C30
-    MSHookFunction((void *)(base + 0x1C50C30), 
-                   (void *)hk_PlayerControl_get_IsKillTimerEnabled, 
-                   (void **)&orig_PlayerControl_get_IsKillTimerEnabled);
-
-    // PlayerPhysics.get_TrueSpeed -> 0x1C666EC
-    MSHookFunction((void *)(base + 0x1C666EC), 
-                   (void *)hk_PlayerPhysics_get_TrueSpeed, 
-                   (void **)&orig_PlayerPhysics_get_TrueSpeed);
+    MSHookFunction((void *)(base + 0x1C50C30), (void *)hk_PlayerControl_get_IsKillTimerEnabled, (void **)&orig_PlayerControl_get_IsKillTimerEnabled);
+    MSHookFunction((void *)(base + 0x1C666EC), (void *)hk_PlayerPhysics_get_TrueSpeed, (void **)&orig_PlayerPhysics_get_TrueSpeed);
 }
 
-// Constructor initialization
 %ctor {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    // Increased delay to 5s to ensure unity/il2cpp engine is fully loaded before hooking
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         SetupOverlayWindow();
         InitializeHooks();
     });
