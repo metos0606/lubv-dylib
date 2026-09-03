@@ -2,6 +2,7 @@
 #import <objc/runtime.h>
 #import <substrate.h>
 #import <mach-o/dyld.h>
+#import <dlfcn.h>
 
 static char kSettingKeyAssociationKey;
 
@@ -174,7 +175,6 @@ static char kSettingKeyAssociationKey;
         [rowView addSubview:label];
         
         if ([keys[i] isEqualToString:@"fastSpeed"]) {
-            // Toggle for Fast Speed
             UISwitch *switchControl = [[UISwitch alloc] initWithFrame:CGRectMake(150, 6, 50, 30)];
             switchControl.onTintColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:1.0];
             objc_setAssociatedObject(switchControl, &kSettingKeyAssociationKey, keys[i], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -182,7 +182,6 @@ static char kSettingKeyAssociationKey;
             switchControl.on = settings.fastSpeed;
             [rowView addSubview:switchControl];
             
-            // Speed Multiplier Slider
             self.speedSlider = [[UISlider alloc] initWithFrame:CGRectMake(205, 8, 70, 28)];
             self.speedSlider.minimumValue = 1.0f;
             self.speedSlider.maximumValue = 10.0f;
@@ -277,10 +276,28 @@ static LUBVGUIButton *guiButton = nil;
 static void SetupOverlayWindow(void) {
     UIWindow *targetWindow = nil;
     
-    for (UIWindow *window in [UIApplication sharedApplication].windows) {
-        if (window.isKeyWindow) {
-            targetWindow = window;
-            break;
+    // Safely iterate application scenes for active UIWindow
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+            if (scene.activationState == UISceneActivationStateForegroundActive && [scene isKindOfClass:[UIWindowScene class]]) {
+                UIWindowScene *windowScene = (UIWindowScene *)scene;
+                for (UIWindow *window in windowScene.windows) {
+                    if (window.isKeyWindow) {
+                        targetWindow = window;
+                        break;
+                    }
+                }
+            }
+            if (targetWindow) break;
+        }
+    }
+    
+    if (!targetWindow) {
+        for (UIWindow *window in [UIApplication sharedApplication].windows) {
+            if (window.isKeyWindow) {
+                targetWindow = window;
+                break;
+            }
         }
     }
     
@@ -320,7 +337,7 @@ static bool (*orig_PetData_get_IsFree)(void *instance);
 static bool (*orig_NameplateData_get_IsFree)(void *instance);
 
 // ============================================================
-// ACHIEVEMENT KEYS
+// ACHIEVEMENT KEYS & IL2CPP HELPER
 // ============================================================
 
 static NSString *const kAchievementKeys[] = {
@@ -336,8 +353,18 @@ static NSString *const kAchievementKeys[] = {
     @"HnSCrewmateWinsHardKey", @"HnSImpostorKillsEasyKey", @"HnSImpostorKillsHardKey"
 };
 
+typedef void* (*il2cpp_string_new_t)(const char* str);
+
 static void* CreateIl2CppString(const char* str) {
-    return (void*)str;
+    if (!str) return NULL;
+    static il2cpp_string_new_t il2cpp_string_new_fn = NULL;
+    if (!il2cpp_string_new_fn) {
+        il2cpp_string_new_fn = (il2cpp_string_new_t)dlsym(RTLD_DEFAULT, "il2cpp_string_new");
+    }
+    if (il2cpp_string_new_fn) {
+        return il2cpp_string_new_fn(str);
+    }
+    return NULL;
 }
 
 // ============================================================
@@ -416,7 +443,9 @@ void hk_AchievementManager_UpdateAchievementsAndStats(void *instance) {
         size_t totalKeys = sizeof(kAchievementKeys) / sizeof(kAchievementKeys[0]);
         for (size_t i = 0; i < totalKeys; i++) {
             void *il2cppKey = CreateIl2CppString([kAchievementKeys[i] UTF8String]);
-            orig_AchievementManager_UnlockAchievement(instance, il2cppKey);
+            if (il2cppKey) {
+                orig_AchievementManager_UnlockAchievement(instance, il2cppKey);
+            }
         }
     }
 }
@@ -477,7 +506,7 @@ static void InitializeHooks(void) {
 
 __attribute__((constructor))
 static void InitAllTweakHooks(void) {
-    // 5-second initialization buffer allows Unity/IL2CPP framework to resolve fully before applying hooks and UI
+    // 5-second delay ensures Unity runtime and IL2CPP engine fully construct their symbols before applying hooks
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         SetupOverlayWindow();
         InitializeHooks();
