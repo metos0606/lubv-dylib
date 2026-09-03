@@ -34,10 +34,9 @@ static char kSettingKeyAssociationKey;
     dispatch_once(&onceToken, ^{
         instance = [[LUBVSettings alloc] init];
         
-        // Defaults
         instance.fastSpeed = NO;
         instance.playerSpeed = 2.5f;
-        instance.alwaysImpostor = NO; // Default off to prevent immediate game desync
+        instance.alwaysImpostor = NO;
         instance.alwaysKill = NO;
         instance.alwaysVent = NO;
         instance.unlockAllAchievements = NO;
@@ -116,7 +115,6 @@ static char kSettingKeyAssociationKey;
     
     [self.superview addSubview:self.menuView];
     
-    // Header Title
     UIView *titleBar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, menuWidth, 50)];
     [self.menuView addSubview:titleBar];
     
@@ -314,7 +312,7 @@ static void SetupOverlayWindow(void) {
 }
 
 // ============================================================
-// HOOK SIGNATURES & ORIGINALS
+// HOOK SIGNATURES & DYNAMIC BASE RESOLUTION
 // ============================================================
 
 static float (*orig_PlayerPhysics_get_TrueSpeed)(void *instance);
@@ -332,40 +330,26 @@ static bool (*orig_SkinData_get_IsFree)(void *instance);
 static bool (*orig_PetData_get_IsFree)(void *instance);
 static bool (*orig_NameplateData_get_IsFree)(void *instance);
 
-// ============================================================
-// ACHIEVEMENT KEYS & IL2CPP HELPER
-// ============================================================
-
-static NSString *const kAchievementKeys[] = {
-    @"TasksCompleteEasyKey", @"TasksCompleteMediumKey", @"TasksCompleteHardKey",
-    @"CardSwipeFirstTryKey", @"KillDuringLightsKey", @"NoVentsImpostorWinKey",
-    @"FirstKillKey", @"KillsEasyKey", @"KillsMediumKey", @"KillsHardKey",
-    @"SkeldWinsKey", @"MiraWinsKey", @"PolusWinsKey", @"AirshipWinsKey",
-    @"TwoImpsSurviveKey", @"TasksWinKey", @"SabotageWinKey", @"ImpostorKillWinKey",
-    @"ImpostorVoteWinKey", @"CrewmateSurviveWinKey", @"DieDuringMedScanKey",
-    @"FixOwnSabotageKey", @"ThreeKillsBeforeMeetingKey", @"WinAlwaysCorrectVotesKey",
-    @"KillWhileDisguisedKey", @"BlockKillAsGuardianAngelKey", @"HnSCrewmateSurviveWinKey",
-    @"HnSImpostorKillAllKey", @"HnSCompleteAllTasksKey", @"HnSCrewmateWinsEasyKey",
-    @"HnSCrewmateWinsHardKey", @"HnSImpostorKillsEasyKey", @"HnSImpostorKillsHardKey"
-};
-
-typedef void* (*il2cpp_string_new_t)(const char* str);
-
-static void* CreateIl2CppString(const char* str) {
-    if (!str) return NULL;
-    static il2cpp_string_new_t il2cpp_string_new_fn = NULL;
-    if (!il2cpp_string_new_fn) {
-        il2cpp_string_new_fn = (il2cpp_string_new_t)dlsym(RTLD_DEFAULT, "il2cpp_string_new");
+// Dynamic ASLR lookup for Unity binary image
+static uintptr_t GetRealBaseAddress(void) {
+    uint32_t count = _dyld_image_count();
+    for (uint32_t i = 0; i < count; i++) {
+        const char *name = _dyld_get_image_name(i);
+        if (name && (strstr(name, "UnityFramework") || strstr(name, "Frameworks/UnityFramework.framework"))) {
+            return (uintptr_t)_dyld_get_image_vmaddr_slide(i);
+        }
     }
-    if (il2cpp_string_new_fn) {
-        return il2cpp_string_new_fn(str);
-    }
-    return NULL;
+    // Fallback to main binary slide if UnityFramework is not embedded as a dylib
+    return (uintptr_t)_dyld_get_image_vmaddr_slide(0);
 }
 
-// Helper to get binary ASLR base slide
-static uintptr_t GetBaseAddress(void) {
-    return (uintptr_t)_dyld_get_image_vmaddr_slide(0);
+// Safe hooking wrapper
+static void SafeHook(uintptr_t targetOffset, void *replacement, void **original) {
+    if (targetOffset == 0 || replacement == NULL) return;
+    uintptr_t base = GetRealBaseAddress();
+    if (base != 0) {
+        MSHookFunction((void *)(base + targetOffset), replacement, original);
+    }
 }
 
 // ============================================================
@@ -420,28 +404,6 @@ void hk_RoleBehaviour_Initialize(void *instance, void *player) {
     }
 }
 
-static BOOL isUnlocking = NO;
-void hk_AchievementManager_UpdateAchievementsAndStats(void *instance) {
-    if (orig_AchievementManager_UpdateAchievementsAndStats) {
-        orig_AchievementManager_UpdateAchievementsAndStats(instance);
-    }
-
-    if (!instance || isUnlocking) return;
-
-    LUBVSettings *settings = [LUBVSettings sharedInstance];
-    if (settings.unlockAllAchievements && orig_AchievementManager_UnlockAchievement) {
-        isUnlocking = YES;
-        size_t totalKeys = sizeof(kAchievementKeys) / sizeof(kAchievementKeys[0]);
-        for (size_t i = 0; i < totalKeys; i++) {
-            void *il2cppKey = CreateIl2CppString([kAchievementKeys[i] UTF8String]);
-            if (il2cppKey) {
-                orig_AchievementManager_UnlockAchievement(instance, il2cppKey);
-            }
-        }
-        isUnlocking = NO;
-    }
-}
-
 bool hk_HatData_get_IsFree(void *instance) {
     if ([LUBVSettings sharedInstance].unlockAllCosmetics) return true;
     return orig_HatData_get_IsFree ? orig_HatData_get_IsFree(instance) : false;
@@ -472,34 +434,33 @@ bool hk_NameplateData_get_IsFree(void *instance) {
 // ============================================================
 
 static void InitializeHooks(void) {
-    uintptr_t base = GetBaseAddress();
-    if (base == 0) return;
-
     // Movement & Meeting
-    MSHookFunction((void *)(base + 0x1C666EC), (void *)hk_PlayerPhysics_get_TrueSpeed, (void **)&orig_PlayerPhysics_get_TrueSpeed);
-    MSHookFunction((void *)(base + 0x1B90790), (void *)hk_MeetingHud_ForceSkipAll, (void **)&orig_MeetingHud_ForceSkipAll);
+    SafeHook(0x1C666EC, (void *)hk_PlayerPhysics_get_TrueSpeed, (void **)&orig_PlayerPhysics_get_TrueSpeed);
+    SafeHook(0x1B90790, (void *)hk_MeetingHud_ForceSkipAll, (void **)&orig_MeetingHud_ForceSkipAll);
 
     // Gameplay & Roles
-    MSHookFunction((void *)(base + 0x1C9BEA0), (void *)hk_RoleBehaviour_get_IsImpostor, (void **)&orig_RoleBehaviour_get_IsImpostor);
-    MSHookFunction((void *)(base + 0x1C50FB4), (void *)hk_PlayerControl_SetKillTimer, (void **)&orig_PlayerControl_SetKillTimer);
-    MSHookFunction((void *)(base + 0x1C963E4), (void *)hk_RoleBehaviour_Initialize, (void **)&orig_RoleBehaviour_Initialize);
-
-    // Achievements
-    MSHookFunction((void *)(base + 0x1B2493C), (void *)NULL, (void **)&orig_AchievementManager_UnlockAchievement);
-    MSHookFunction((void *)(base + 0x1B23F64), (void *)hk_AchievementManager_UpdateAchievementsAndStats, (void **)&orig_AchievementManager_UpdateAchievementsAndStats);
+    SafeHook(0x1C9BEA0, (void *)hk_RoleBehaviour_get_IsImpostor, (void **)&orig_RoleBehaviour_get_IsImpostor);
+    SafeHook(0x1C50FB4, (void *)hk_PlayerControl_SetKillTimer, (void **)&orig_PlayerControl_SetKillTimer);
+    SafeHook(0x1C963E4, (void *)hk_RoleBehaviour_Initialize, (void **)&orig_RoleBehaviour_Initialize);
 
     // Cosmetics
-    MSHookFunction((void *)(base + 0x1B381A0), (void *)hk_HatData_get_IsFree, (void **)&orig_HatData_get_IsFree);
-    MSHookFunction((void *)(base + 0x1B39D50), (void *)hk_VisorData_get_IsFree, (void **)&orig_VisorData_get_IsFree);
-    MSHookFunction((void *)(base + 0x1B3B180), (void *)hk_SkinData_get_IsFree, (void **)&orig_SkinData_get_IsFree);
-    MSHookFunction((void *)(base + 0x1B3CB30), (void *)hk_PetData_get_IsFree, (void **)&orig_PetData_get_IsFree);
-    MSHookFunction((void *)(base + 0x1B3E040), (void *)hk_NameplateData_get_IsFree, (void **)&orig_NameplateData_get_IsFree);
+    SafeHook(0x1B381A0, (void *)hk_HatData_get_IsFree, (void **)&orig_HatData_get_IsFree);
+    SafeHook(0x1B39D50, (void *)hk_VisorData_get_IsFree, (void **)&orig_VisorData_get_IsFree);
+    SafeHook(0x1B3B180, (void *)hk_SkinData_get_IsFree, (void **)&orig_SkinData_get_IsFree);
+    SafeHook(0x1B3CB30, (void *)hk_PetData_get_IsFree, (void **)&orig_PetData_get_IsFree);
+    SafeHook(0x1B3E040, (void *)hk_NameplateData_get_IsFree, (void **)&orig_NameplateData_get_IsFree);
 }
 
 __attribute__((constructor))
 static void InitAllTweakHooks(void) {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        SetupOverlayWindow();
-        InitializeHooks();
-    });
+    // Listen for application finish launching event before loading UI & Hooks
+    [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidFinishLaunchingNotification
+                                                     object:nil
+                                                      queue:[NSOperationQueue mainQueue]
+                                                 usingBlock:^(NSNotification * _Nonnull note) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            SetupOverlayWindow();
+            InitializeHooks();
+        });
+    }];
 }
