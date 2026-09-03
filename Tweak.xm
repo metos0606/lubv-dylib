@@ -321,9 +321,6 @@ static bool (*orig_RoleBehaviour_get_IsImpostor)(void *instance);
 static void (*orig_PlayerControl_SetKillTimer)(void *instance, float time);
 static void (*orig_RoleBehaviour_Initialize)(void *instance, void *player);
 
-static void (*orig_AchievementManager_UnlockAchievement)(void *instance, void *keyString);
-static void (*orig_AchievementManager_UpdateAchievementsAndStats)(void *instance);
-
 static bool (*orig_HatData_get_IsFree)(void *instance);
 static bool (*orig_VisorData_get_IsFree)(void *instance);
 static bool (*orig_SkinData_get_IsFree)(void *instance);
@@ -339,7 +336,6 @@ static uintptr_t GetRealBaseAddress(void) {
             return (uintptr_t)_dyld_get_image_vmaddr_slide(i);
         }
     }
-    // Fallback to main binary slide if UnityFramework is not embedded as a dylib
     return (uintptr_t)_dyld_get_image_vmaddr_slide(0);
 }
 
@@ -453,7 +449,6 @@ static void InitializeHooks(void) {
 
 __attribute__((constructor))
 static void InitAllTweakHooks(void) {
-    // Listen for application finish launching event before loading UI & Hooks
     [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidFinishLaunchingNotification
                                                      object:nil
                                                       queue:[NSOperationQueue mainQueue]
