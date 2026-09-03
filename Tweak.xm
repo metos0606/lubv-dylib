@@ -37,11 +37,11 @@ static char kSettingKeyAssociationKey;
         // Defaults
         instance.fastSpeed = NO;
         instance.playerSpeed = 2.5f;
-        instance.alwaysImpostor = YES;
-        instance.alwaysKill = YES;
-        instance.alwaysVent = YES;
-        instance.unlockAllAchievements = YES;
-        instance.unlockAllCosmetics = YES;
+        instance.alwaysImpostor = NO; // Default off to prevent immediate game desync
+        instance.alwaysKill = NO;
+        instance.alwaysVent = NO;
+        instance.unlockAllAchievements = NO;
+        instance.unlockAllCosmetics = NO;
     });
     return instance;
 }
@@ -274,62 +274,58 @@ static char kSettingKeyAssociationKey;
 static LUBVGUIButton *guiButton = nil;
 
 static void SetupOverlayWindow(void) {
-    UIWindow *targetWindow = nil;
-    
-    // Safely iterate application scenes for active UIWindow
-    if (@available(iOS 13.0, *)) {
-        for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
-            if (scene.activationState == UISceneActivationStateForegroundActive && [scene isKindOfClass:[UIWindowScene class]]) {
-                UIWindowScene *windowScene = (UIWindowScene *)scene;
-                for (UIWindow *window in windowScene.windows) {
-                    if (window.isKeyWindow) {
-                        targetWindow = window;
-                        break;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow *targetWindow = nil;
+        
+        if (@available(iOS 13.0, *)) {
+            for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+                if (scene.activationState == UISceneActivationStateForegroundActive && [scene isKindOfClass:[UIWindowScene class]]) {
+                    UIWindowScene *windowScene = (UIWindowScene *)scene;
+                    for (UIWindow *window in windowScene.windows) {
+                        if (window.isKeyWindow) {
+                            targetWindow = window;
+                            break;
+                        }
                     }
                 }
-            }
-            if (targetWindow) break;
-        }
-    }
-    
-    if (!targetWindow) {
-        for (UIWindow *window in [UIApplication sharedApplication].windows) {
-            if (window.isKeyWindow) {
-                targetWindow = window;
-                break;
+                if (targetWindow) break;
             }
         }
-    }
-    
-    if (!targetWindow) {
-        targetWindow = [UIApplication sharedApplication].windows.firstObject;
-    }
-    
-    if (targetWindow && !guiButton) {
-        guiButton = [[LUBVGUIButton alloc] initWithFrame:CGRectMake(20, 120, 50, 50)];
-        [targetWindow addSubview:guiButton];
-        [targetWindow bringSubviewToFront:guiButton];
-    }
+        
+        if (!targetWindow) {
+            for (UIWindow *window in [UIApplication sharedApplication].windows) {
+                if (window.isKeyWindow) {
+                    targetWindow = window;
+                    break;
+                }
+            }
+        }
+        
+        if (!targetWindow) {
+            targetWindow = [UIApplication sharedApplication].windows.firstObject;
+        }
+        
+        if (targetWindow && !guiButton) {
+            guiButton = [[LUBVGUIButton alloc] initWithFrame:CGRectMake(20, 120, 50, 50)];
+            [targetWindow addSubview:guiButton];
+            [targetWindow bringSubviewToFront:guiButton];
+        }
+    });
 }
 
 // ============================================================
 // HOOK SIGNATURES & ORIGINALS
 // ============================================================
 
-// Speed & Meeting
 static float (*orig_PlayerPhysics_get_TrueSpeed)(void *instance);
 static void (*orig_MeetingHud_ForceSkipAll)(void *instance);
-
-// Gameplay Roles & Abilities
 static bool (*orig_RoleBehaviour_get_IsImpostor)(void *instance);
 static void (*orig_PlayerControl_SetKillTimer)(void *instance, float time);
 static void (*orig_RoleBehaviour_Initialize)(void *instance, void *player);
 
-// Achievements
 static void (*orig_AchievementManager_UnlockAchievement)(void *instance, void *keyString);
 static void (*orig_AchievementManager_UpdateAchievementsAndStats)(void *instance);
 
-// Cosmetics / Accessories
 static bool (*orig_HatData_get_IsFree)(void *instance);
 static bool (*orig_VisorData_get_IsFree)(void *instance);
 static bool (*orig_SkinData_get_IsFree)(void *instance);
@@ -365,6 +361,11 @@ static void* CreateIl2CppString(const char* str) {
         return il2cpp_string_new_fn(str);
     }
     return NULL;
+}
+
+// Helper to get binary ASLR base slide
+static uintptr_t GetBaseAddress(void) {
+    return (uintptr_t)_dyld_get_image_vmaddr_slide(0);
 }
 
 // ============================================================
@@ -417,29 +418,19 @@ void hk_RoleBehaviour_Initialize(void *instance, void *player) {
     if (orig_RoleBehaviour_Initialize) {
         orig_RoleBehaviour_Initialize(instance, player);
     }
-
-    if (!instance) return;
-
-    LUBVSettings *settings = [LUBVSettings sharedInstance];
-
-    if (settings.alwaysKill) {
-        *(bool *)((uintptr_t)instance + 0x69) = true;
-    }
-
-    if (settings.alwaysVent) {
-        *(bool *)((uintptr_t)instance + 0x6B) = true;
-    }
 }
 
+static BOOL isUnlocking = NO;
 void hk_AchievementManager_UpdateAchievementsAndStats(void *instance) {
     if (orig_AchievementManager_UpdateAchievementsAndStats) {
         orig_AchievementManager_UpdateAchievementsAndStats(instance);
     }
 
-    if (!instance) return;
+    if (!instance || isUnlocking) return;
 
     LUBVSettings *settings = [LUBVSettings sharedInstance];
     if (settings.unlockAllAchievements && orig_AchievementManager_UnlockAchievement) {
+        isUnlocking = YES;
         size_t totalKeys = sizeof(kAchievementKeys) / sizeof(kAchievementKeys[0]);
         for (size_t i = 0; i < totalKeys; i++) {
             void *il2cppKey = CreateIl2CppString([kAchievementKeys[i] UTF8String]);
@@ -447,6 +438,7 @@ void hk_AchievementManager_UpdateAchievementsAndStats(void *instance) {
                 orig_AchievementManager_UnlockAchievement(instance, il2cppKey);
             }
         }
+        isUnlocking = NO;
     }
 }
 
@@ -480,7 +472,7 @@ bool hk_NameplateData_get_IsFree(void *instance) {
 // ============================================================
 
 static void InitializeHooks(void) {
-    uintptr_t base = (uintptr_t)_dyld_get_image_header(0);
+    uintptr_t base = GetBaseAddress();
     if (base == 0) return;
 
     // Movement & Meeting
@@ -493,7 +485,7 @@ static void InitializeHooks(void) {
     MSHookFunction((void *)(base + 0x1C963E4), (void *)hk_RoleBehaviour_Initialize, (void **)&orig_RoleBehaviour_Initialize);
 
     // Achievements
-    MSHookFunction((void *)(base + 0x1B2493C), NULL, (void **)&orig_AchievementManager_UnlockAchievement);
+    MSHookFunction((void *)(base + 0x1B2493C), (void *)NULL, (void **)&orig_AchievementManager_UnlockAchievement);
     MSHookFunction((void *)(base + 0x1B23F64), (void *)hk_AchievementManager_UpdateAchievementsAndStats, (void **)&orig_AchievementManager_UpdateAchievementsAndStats);
 
     // Cosmetics
@@ -506,7 +498,6 @@ static void InitializeHooks(void) {
 
 __attribute__((constructor))
 static void InitAllTweakHooks(void) {
-    // 5-second delay ensures Unity runtime and IL2CPP engine fully construct their symbols before applying hooks
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         SetupOverlayWindow();
         InitializeHooks();
